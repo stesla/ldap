@@ -69,6 +69,33 @@ func (l *conn) writeMessage(tag int, op []byte) error {
 	return err
 }
 
+func (l *conn) readResponse(tag int) (out []byte, err error) {
+	buf := make([]byte, 4096)
+
+	_, err = l.Read(buf)
+	if err != nil {
+		return
+	}
+
+	var msg ldapMessage
+	_, err = asn1.Unmarshal(buf, &msg)
+	if err != nil {
+		return
+	}
+
+	var resp asn1.RawValue
+	_, err = asn1.Unmarshal(msg.Op.FullBytes, &resp)
+	if err != nil {
+		return
+	}
+
+	if !(resp.Class == classApplication && resp.Tag == tag) {
+		return nil, LDAPError{"response tag mismatch"}
+	}
+
+	return resp.Bytes, nil
+}
+
 func (l *conn) Bind(user, password string) error {
 	bindRequest, err := marshalComponents(
 		ldapVersion,
@@ -82,31 +109,13 @@ func (l *conn) Bind(user, password string) error {
 		return err
 	}
 
-	//TODO: extract the rest of this into some sort of function
-	buf := make([]byte, 4096)
-	_, err = l.Read(buf)
+	respBytes, err := l.readResponse(ldapBindResponse)
 	if err != nil {
 		return err
-	}
-
-	var msg ldapMessage
-	_, err = asn1.Unmarshal(buf, &msg)
-	if err != nil {
-		return err
-	}
-
-	var resp asn1.RawValue
-	_, err = asn1.Unmarshal(msg.Op.FullBytes, &resp)
-	if err != nil {
-		return err
-	}
-
-	if resp.Class != classApplication || resp.Class != ldapBindResponse {
-		return LDAPError{"response tag mismatch"}
 	}
 
 	var resultCode asn1.Enumerated
-	_, err = asn1.Unmarshal(resp.Bytes, &resultCode)
+	_, err = asn1.Unmarshal(respBytes, &resultCode)
 	if err != nil {
 		return err
 	}
