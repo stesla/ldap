@@ -99,8 +99,8 @@ func (l *conn) readResponse(tag int) (out []byte, err error) {
 func (l *conn) Bind(user, password string) error {
 	bindRequest, err := marshalComponents(
 		ldapVersion,
-		asn1.RawValue{Class: 0, Tag: 4, Bytes: []byte(user)},
-		asn1.RawValue{Class: 2, Tag: 0, Bytes: []byte(password)})
+		asn1.RawValue{Class: classUniversal, Tag: tagOctetString, Bytes: []byte(user)},
+		asn1.RawValue{Class: classContext, Tag: 0, Bytes: []byte(password)})
 	if err != nil {
 		return err
 	}

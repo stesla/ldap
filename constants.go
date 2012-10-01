@@ -17,3 +17,7 @@ const ( // ASN.1 class codes
 	classContext = 2
 	classPrivate = 3
 )
+
+const ( // ASN.1 tags
+	tagOctetString = 4
+)
