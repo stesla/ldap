@@ -10,6 +10,7 @@ import (
 type Conn interface {
 	net.Conn
 	Bind(user, password string) error
+	Unbind() error
 }
 
 // TODO: Implement TLS
@@ -122,6 +123,18 @@ func (l *conn) Bind(user, password string) error {
 
 	if resultCode != ldapSuccess {
 		return LDAPError{fmt.Sprintf("bind resultCode = %d", resultCode)}
+	}
+	return nil
+}
+
+func (l *conn) Unbind() error {
+	null, err := asn1.Marshal(asn1.RawValue{Class: classUniversal, Tag: tagNull})
+	if err != nil {
+		return err
+	}
+	err = l.writeMessage(ldapUnbindRequest, null)
+	if err != nil {
+		return err
 	}
 	return nil
 }
