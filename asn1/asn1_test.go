@@ -36,6 +36,7 @@ func TestDecodeType(t *testing.T) {
 	tests := []decodeTest{
 		{[]byte{}, false, tlvType{}},
 		{[]byte{0x1f, 0x85}, false, tlvType{}},
+		{[]byte{0x1f, 0x00}, false, tlvType{}},
 		{[]byte{0x00}, true, tlvType{0, 0, false}},
 		{[]byte{0x80}, true, tlvType{2, 0, false}},
 		{[]byte{0xa0}, true, tlvType{2, 0, true}},

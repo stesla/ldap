@@ -82,14 +82,26 @@ func decodeType(r io.Reader, buf []byte) (out tlvType, err error) {
 	if tag := buf[0] & 0x1f; tag < 0x1f {
 		out.tag = int(tag)
 	} else {
+		_, err = r.Read(buf[0:1])
+		if err != nil {
+			return
+		}
+
+		if buf[0]&0x7f == 0 {
+			err = SyntaxError{"long-form tag"}
+			return
+		}
+
 		for {
+			out.tag = out.tag<<7 | int(buf[0]&0x1f)
+
+			if buf[0]&0x80 == 0 {
+				break
+			}
+
 			_, err = r.Read(buf[0:1])
 			if err != nil {
 				return
-			}
-			out.tag = out.tag<<7 | int(buf[0]&0x1f)
-			if buf[0]&0x80 == 0 {
-				break
 			}
 		}
 	}
