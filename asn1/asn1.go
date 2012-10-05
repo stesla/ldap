@@ -49,11 +49,6 @@ type SyntaxError struct {
 
 func (e SyntaxError) Error() string { return "ASN.1 Syntax Error: " + e.Msg }
 
-type metadata struct {
-	class, tag, length int
-	isCompound         bool
-}
-
 type tlvType struct {
 	class, tag int
 	isCompound bool
