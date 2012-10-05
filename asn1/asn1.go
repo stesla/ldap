@@ -1,5 +1,9 @@
 package asn1
 
+import (
+	"io"
+)
+
 const ( // ASN.1 Classes
 	ClassUniversal       = 0 // 0b00
 	ClassApplication     = 1 // 0b01
@@ -66,41 +70,39 @@ type tlvLength struct {
 	isIndefinite bool
 }
 
-func decodeType(in []byte) (out tlvType, rem []byte, err error) {
-	rem = in[:]
-	if len(rem) == 0 {
-		err = IncompleteTLVError{"no identifier byte"}
+func decodeType(r io.Reader, buf []byte) (out tlvType, err error) {
+	_, err = r.Read(buf[0:1])
+	if err != nil {
 		return
 	}
-	out.class = int(rem[0] >> 6)
-	out.isCompound = rem[0]&0x20 == 0x20
 
-	if tag := rem[0] & 0x1f; tag < 0x1f {
+	out.class = int(buf[0] >> 6)
+	out.isCompound = buf[0]&0x20 == 0x20
+
+	if tag := buf[0] & 0x1f; tag < 0x1f {
 		out.tag = int(tag)
 	} else {
 		for {
-			if rem = rem[1:]; len(rem) == 0 {
-				err = IncompleteTLVError{"long-form tag"}
+			_, err = r.Read(buf[0:1])
+			if err != nil {
 				return
 			}
-			out.tag = (out.tag << 7) + int(rem[0]&0x1f)
-			if rem[0]&0x80 == 0 {
+			out.tag = out.tag<<7 | int(buf[0]&0x1f)
+			if buf[0]&0x80 == 0 {
 				break
 			}
 		}
 	}
-	rem = rem[1:]
 	return
 }
 
-func decodeLength(in []byte) (out tlvLength, rem []byte, err error) {
-	rem = in[:]
-	if len(rem) == 0 {
-		err = IncompleteTLVError{"no length byte"}
+func decodeLength(r io.Reader, buf []byte) (out tlvLength, err error) {
+	_, err = r.Read(buf[0:1])
+	if err != nil {
 		return
 	}
 
-	if length := rem[0]; length < 0x80 {
+	if length := buf[0]; length < 0x80 {
 		out.length = int(length)
 	} else if length == 0x80 {
 		out.isIndefinite = true
@@ -108,16 +110,15 @@ func decodeLength(in []byte) (out tlvLength, rem []byte, err error) {
 		err = SyntaxError{"long-form length"}
 		return
 	} else {
-		i := length & 0x7f
-		for ; i > 0; i-- {
-			rem = rem[1:]
-			if len(rem) == 0 {
-				err = IncompleteTLVError{"long-form length"}
-				return
-			}
-			out.length = (out.length << 8) + int(rem[0])
+		var width int
+		n := length & 0x7f
+		width, err = io.ReadFull(r, buf[0:n])
+		if err != nil {
+			return
+		}
+		for _, b := range buf[0:width] {
+			out.length = out.length<<8 | int(b)
 		}
 	}
-	rem = rem[1:]
 	return
 }
