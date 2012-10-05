@@ -43,12 +43,6 @@ const ( // ASN.1 Universal Tags
 	// TagBMPString        = 0x1e
 )
 
-type IncompleteTLVError struct {
-	Msg string
-}
-
-func (e IncompleteTLVError) Error() string { return "ASN.1 Incomplete TLV: " + e.Msg }
-
 type SyntaxError struct {
 	Msg string
 }
