@@ -2,6 +2,7 @@ package asn1
 
 import (
 	"io"
+	"reflect"
 )
 
 type tlvType struct {
@@ -77,4 +78,47 @@ func decodeLength(r io.Reader, buf []byte) (out tlvLength, err error) {
 		}
 	}
 	return
+}
+
+type Decoder struct {
+	r io.Reader
+}
+
+func NewDecoder(r io.Reader) *Decoder {
+	return &Decoder{r}
+}
+
+var (
+	rawValueType = reflect.TypeOf(RawValue{})
+)
+
+func (dec *Decoder) Decode(out interface{}) error {
+	v := reflect.ValueOf(out).Elem()
+	if v.Type() != rawValueType {
+		return StructuralError{"Unsupported Type"}
+	}
+
+	buf := make([]byte, 10)
+
+	t, err := decodeType(dec.r, buf)
+	if err != nil {
+		return err
+	}
+
+	l, err := decodeLength(dec.r, buf)
+	if err != nil {
+		return err
+	}
+
+	if l.isIndefinite {
+		return SyntaxError{"Indefinite Length Not Supported"}
+	}
+
+	result := RawValue{t.class, t.tag, make([]byte, l.length)}
+	_, err = io.ReadFull(dec.r, result.Bytes)
+	if err != nil {
+		return err
+	}
+	v.Set(reflect.ValueOf(result))
+	return nil
 }

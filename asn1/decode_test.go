@@ -13,15 +13,14 @@ type decodeTest struct {
 	out interface{}
 }
 
-type decodeFn func(io.Reader, []byte) (interface{}, error)
+type decodeFn func(io.Reader) (interface{}, error)
 
 func runDecodeTests(t *testing.T, tests []decodeTest, decode decodeFn) {
-	buf := make([]byte, 8)
 	for i, test := range tests {
-		out, err := decode(bytes.NewReader(test.in), buf)
+		out, err := decode(bytes.NewReader(test.in))
 		if (err == nil) != test.ok {
-			t.Errorf("#%d: Incorrect error result (passed? %v, expected %v)",
-				i, err == nil, test.ok)
+			t.Errorf("#%d: Incorrect error result (passed? %v, expected %v): %s",
+				i, err == nil, test.ok, err)
 		}
 		if err == nil && !reflect.DeepEqual(test.out, out) {
 			t.Errorf("#%d: Bad result: %v (expected %v)", i, out, test.out)
@@ -30,7 +29,8 @@ func runDecodeTests(t *testing.T, tests []decodeTest, decode decodeFn) {
 }
 
 func TestDecodeType(t *testing.T) {
-	fn := func(r io.Reader, buf []byte) (interface{}, error) {
+	fn := func(r io.Reader) (interface{}, error) {
+		buf := make([]byte, 8)
 		return decodeType(r, buf)
 	}
 	tests := []decodeTest{
@@ -50,7 +50,8 @@ func TestDecodeType(t *testing.T) {
 }
 
 func TestDecodeLength(t *testing.T) {
-	fn := func(r io.Reader, buf []byte) (interface{}, error) {
+	fn := func(r io.Reader) (interface{}, error) {
+		buf := make([]byte, 8)
 		return decodeLength(r, buf)
 	}
 	tests := []decodeTest{
@@ -60,6 +61,19 @@ func TestDecodeLength(t *testing.T) {
 		{[]byte{}, false, tlvLength{}},
 		{[]byte{0x83, 0x01, 0x00}, false, tlvLength{}},
 		{[]byte{0xff}, false, tlvLength{}},
+	}
+	runDecodeTests(t, tests, fn)
+}
+
+func TestDecode(t *testing.T) {
+	fn := func(r io.Reader) (out interface{}, err error) {
+		dec := NewDecoder(r)
+		out = new(RawValue)
+		err = dec.Decode(out)
+		return
+	}
+	tests := []decodeTest{
+		{[]byte{0x05, 0x00}, true, &RawValue{ClassUniversal, TagNull, []byte{}}},
 	}
 	runDecodeTests(t, tests, fn)
 }
