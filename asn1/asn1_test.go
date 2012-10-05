@@ -6,12 +6,12 @@ import (
 )
 
 type parseTest struct {
-	in []byte
-	ok bool
+	in  []byte
+	ok  bool
 	out interface{}
 }
 
-type parseFn func([]byte)(interface{},[]byte,error)
+type parseFn func([]byte) (interface{}, []byte, error)
 
 func runParseTests(t *testing.T, tests []parseTest, parse parseFn) {
 	for i, test := range tests {
@@ -33,7 +33,7 @@ func TestParseType(t *testing.T) {
 	fn := func(in []byte) (interface{}, []byte, error) {
 		return parseType(in)
 	}
-	tests := []parseTest {
+	tests := []parseTest{
 		{[]byte{}, false, tlvType{}},
 		{[]byte{0x1f, 0x85}, false, tlvType{}},
 		{[]byte{0x00}, true, tlvType{0, 0, false}},
@@ -52,7 +52,7 @@ func TestParseLength(t *testing.T) {
 	fn := func(in []byte) (interface{}, []byte, error) {
 		return parseLength(in)
 	}
-	tests := []parseTest {
+	tests := []parseTest{
 		{[]byte{0x81, 0x01}, true, tlvLength{1, false}},
 		{[]byte{0x82, 0x01, 0x00}, true, tlvLength{256, false}},
 		{[]byte{0x80}, true, tlvLength{0, true}},
@@ -62,4 +62,3 @@ func TestParseLength(t *testing.T) {
 	}
 	runParseTests(t, tests, fn)
 }
-

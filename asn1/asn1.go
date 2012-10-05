@@ -1,28 +1,28 @@
 package asn1
 
 const ( // ASN.1 Classes
-	ClassUniversal   = 0 // 0b00
-	ClassApplication = 1 // 0b01
-	ClassContextSpecific     = 2 // 0b10
-	ClassPrivate     = 3 // 0b11
+	ClassUniversal       = 0 // 0b00
+	ClassApplication     = 1 // 0b01
+	ClassContextSpecific = 2 // 0b10
+	ClassPrivate         = 3 // 0b11
 )
 
 const ( // ASN.1 Universal Tags
 	// TagEndOfContent     = 0x00
-	TagBoolean          = 0x01
-	TagInteger          = 0x02
+	TagBoolean = 0x01
+	TagInteger = 0x02
 	// TagBitString        = 0x03
-	TagOctetString      = 0x04
-	TagNull             = 0x05
+	TagOctetString = 0x04
+	TagNull        = 0x05
 	// TagObjectIdentifier = 0x06
 	// TagObjectDescriptor = 0x07
 	// TagExternal         = 0x08
 	// TagReal             = 0x09
-	TagEnumerated       = 0x0a
+	TagEnumerated = 0x0a
 	// TagEmbeddedPDV      = 0x0b
 	// TagUTF8String       = 0x0c
 	// TagRelativeOID      = 0x0d
-	TagSequence         = 0x10
+	TagSequence = 0x10
 	// TagSet              = 0x11
 	// TagNumericString    = 0x12
 	// TagPrintableString  = 0x13
@@ -51,10 +51,9 @@ type SyntaxError struct {
 
 func (e SyntaxError) Error() string { return "ASN.1 Syntax Error: " + e.Msg }
 
-
 type metadata struct {
 	class, tag, length int
-	isCompound bool
+	isCompound         bool
 }
 
 type tlvType struct {
@@ -63,7 +62,7 @@ type tlvType struct {
 }
 
 type tlvLength struct {
-	length int
+	length       int
 	isIndefinite bool
 }
 
@@ -74,7 +73,7 @@ func parseType(in []byte) (out tlvType, rem []byte, err error) {
 		return
 	}
 	out.class = int(rem[0] >> 6)
-	out.isCompound = rem[0] & 0x20 == 0x20
+	out.isCompound = rem[0]&0x20 == 0x20
 
 	if tag := rem[0] & 0x1f; tag < 0x1f {
 		out.tag = int(tag)
@@ -84,8 +83,8 @@ func parseType(in []byte) (out tlvType, rem []byte, err error) {
 				err = IncompleteTLVError{"long-form tag"}
 				return
 			}
-			out.tag = (out.tag << 7) + int(rem[0] & 0x1f)
-			if rem[0] & 0x80 == 0 {
+			out.tag = (out.tag << 7) + int(rem[0]&0x1f)
+			if rem[0]&0x80 == 0 {
 				break
 			}
 		}
