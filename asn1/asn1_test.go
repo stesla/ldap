@@ -5,17 +5,17 @@ import (
 	"testing"
 )
 
-type parseTest struct {
+type decodeTest struct {
 	in  []byte
 	ok  bool
 	out interface{}
 }
 
-type parseFn func([]byte) (interface{}, []byte, error)
+type decodeFn func([]byte) (interface{}, []byte, error)
 
-func runParseTests(t *testing.T, tests []parseTest, parse parseFn) {
+func runDecodeTests(t *testing.T, tests []decodeTest, decode decodeFn) {
 	for i, test := range tests {
-		out, rem, err := parse(test.in)
+		out, rem, err := decode(test.in)
 		if (err == nil) != test.ok {
 			t.Errorf("#%d: Incorrect error result (passed? %v, expected %v)",
 				i, err == nil, test.ok)
@@ -29,11 +29,11 @@ func runParseTests(t *testing.T, tests []parseTest, parse parseFn) {
 	}
 }
 
-func TestParseType(t *testing.T) {
+func TestDecodeType(t *testing.T) {
 	fn := func(in []byte) (interface{}, []byte, error) {
-		return parseType(in)
+		return decodeType(in)
 	}
-	tests := []parseTest{
+	tests := []decodeTest{
 		{[]byte{}, false, tlvType{}},
 		{[]byte{0x1f, 0x85}, false, tlvType{}},
 		{[]byte{0x00}, true, tlvType{0, 0, false}},
@@ -45,14 +45,14 @@ func TestParseType(t *testing.T) {
 		{[]byte{0x1f, 0x81, 0x00}, true, tlvType{0, 128, false}},
 		{[]byte{0x1f, 0x81, 0x80, 0x01}, true, tlvType{0, 0x4001, false}},
 	}
-	runParseTests(t, tests, fn)
+	runDecodeTests(t, tests, fn)
 }
 
-func TestParseLength(t *testing.T) {
+func TestDecodeLength(t *testing.T) {
 	fn := func(in []byte) (interface{}, []byte, error) {
-		return parseLength(in)
+		return decodeLength(in)
 	}
-	tests := []parseTest{
+	tests := []decodeTest{
 		{[]byte{0x81, 0x01}, true, tlvLength{1, false}},
 		{[]byte{0x82, 0x01, 0x00}, true, tlvLength{256, false}},
 		{[]byte{0x80}, true, tlvLength{0, true}},
@@ -60,5 +60,5 @@ func TestParseLength(t *testing.T) {
 		{[]byte{0x83, 0x01, 0x00}, false, tlvLength{}},
 		{[]byte{0xff}, false, tlvLength{}},
 	}
-	runParseTests(t, tests, fn)
+	runDecodeTests(t, tests, fn)
 }

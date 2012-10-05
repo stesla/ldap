@@ -66,7 +66,7 @@ type tlvLength struct {
 	isIndefinite bool
 }
 
-func parseType(in []byte) (out tlvType, rem []byte, err error) {
+func decodeType(in []byte) (out tlvType, rem []byte, err error) {
 	rem = in[:]
 	if len(rem) == 0 {
 		err = IncompleteTLVError{"no identifier byte"}
@@ -93,7 +93,7 @@ func parseType(in []byte) (out tlvType, rem []byte, err error) {
 	return
 }
 
-func parseLength(in []byte) (out tlvLength, rem []byte, err error) {
+func decodeLength(in []byte) (out tlvLength, rem []byte, err error) {
 	rem = in[:]
 	if len(rem) == 0 {
 		err = IncompleteTLVError{"no length byte"}
