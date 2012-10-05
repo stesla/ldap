@@ -57,41 +57,54 @@ type metadata struct {
 	isCompound bool
 }
 
-func parseMetadata(in []byte) (out metadata, rem []byte, err error) {
+type tlvType struct {
+	class, tag int
+	isCompound bool
+}
+
+type tlvLength struct {
+	length int
+	isIndefinite bool
+}
+
+func parseType(in []byte) (out tlvType, rem []byte, err error) {
 	rem = in[:]
 	if len(rem) == 0 {
 		err = IncompleteTLVError{"no identifier byte"}
 		return
 	}
-	var md metadata
-	md.class = int(rem[0] >> 6)
-	md.isCompound = rem[0] & 0x20 == 0x20
+	out.class = int(rem[0] >> 6)
+	out.isCompound = rem[0] & 0x20 == 0x20
 
 	if tag := rem[0] & 0x1f; tag < 0x1f {
-		md.tag = int(tag)
+		out.tag = int(tag)
 	} else {
 		for {
 			if rem = rem[1:]; len(rem) == 0 {
 				err = IncompleteTLVError{"long-form tag"}
 				return
 			}
-			md.tag = (md.tag << 7) + int(rem[0] & 0x1f)
+			out.tag = (out.tag << 7) + int(rem[0] & 0x1f)
 			if rem[0] & 0x80 == 0 {
 				break
 			}
 		}
 	}
 	rem = rem[1:]
+	return
+}
 
+func parseLength(in []byte) (out tlvLength, rem []byte, err error) {
+	rem = in[:]
 	if len(rem) == 0 {
 		err = IncompleteTLVError{"no length byte"}
 		return
 	}
 
 	if length := rem[0]; length < 0x80 {
-		md.length = int(length)
+		out.length = int(length)
 	} else if length == 0x80 {
-		md.length = -1
+		out.isIndefinite = true
 	} else if length == 0xff {
 		err = SyntaxError{"long-form length"}
 		return
@@ -103,10 +116,9 @@ func parseMetadata(in []byte) (out metadata, rem []byte, err error) {
 				err = IncompleteTLVError{"long-form length"}
 				return
 			}
-			md.length = (md.length << 8) + int(rem[0])
+			out.length = (out.length << 8) + int(rem[0])
 		}
 	}
-
-	out = md
+	rem = rem[1:]
 	return
 }

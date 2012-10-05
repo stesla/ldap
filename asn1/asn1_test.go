@@ -5,42 +5,71 @@ import (
 	"testing"
 )
 
-type parseMetadataTest struct {
+type parseIdentTest struct {
 	in []byte
 	ok bool
-	out metadata
+	out tlvType
 }
 
-var parseMetadataTests = []parseMetadataTest{
+var parseIdentTests = []parseIdentTest {
+	{[]byte{}, false, tlvType{}},
+	{[]byte{0x1f, 0x85}, false, tlvType{}},
+	{[]byte{0x00}, true, tlvType{0, 0, false}},
+	{[]byte{0x80}, true, tlvType{2, 0, false}},
+	{[]byte{0xa0}, true, tlvType{2, 0, true}},
+	{[]byte{0x41}, true, tlvType{1, 1, false}},
+	{[]byte{0xfe}, true, tlvType{3, 30, true}},
+	{[]byte{0x1f, 0x01}, true, tlvType{0, 1, false}},
+	{[]byte{0x1f, 0x81, 0x00}, true, tlvType{0, 128, false}},
+	{[]byte{0x1f, 0x81, 0x80, 0x01}, true, tlvType{0, 0x4001, false}},
+}
+
+func TestParseType(t *testing.T) {
+	for i, test := range parseIdentTests {
+		ident, rem, err := parseType(test.in)
+		if (err == nil) != test.ok {
+			t.Errorf("#%d: Incorrect error result (passed? %v, expected %v)",
+				i, err == nil, test.ok)
+		}
+		if err == nil && !reflect.DeepEqual(test.out, ident) {
+			t.Errorf("#%d: Bad result: %v (expected %v)", i, ident, test.out)
+		}
+		if len(rem) != 0 {
+			t.Errorf("#%d: Did not consume all bytes, %d remaining", i, len(rem))
+		}
+	}
+}
+
+type parseLengthTest struct {
+	in []byte
+	ok bool
+	out tlvLength
+}
+
+var parseLengthTests = []parseLengthTest {
 	// Good Input
-	{[]byte{0x00, 0x00}, true, metadata{0, 0, 0, false}},
-	{[]byte{0x80, 0x01}, true, metadata{2, 0, 1, false}},
-	{[]byte{0xa0, 0x01}, true, metadata{2, 0, 1, true}},
-	{[]byte{0x41, 0x01}, true, metadata{1, 1, 1, false}},
-	{[]byte{0xfe, 0x00}, true, metadata{3, 30, 0, true}},
-	{[]byte{0x1f, 0x01, 0x00}, true, metadata{0, 1, 0, false}},
-	{[]byte{0x1f, 0x81, 0x00, 0x00}, true, metadata{0, 128, 0, false}},
-	{[]byte{0x1f, 0x81, 0x80, 0x01, 0x00}, true, metadata{0, 0x4001, 0, false}},
-	{[]byte{0x00, 0x81, 0x01}, true, metadata{0, 0, 1, false}},
-	{[]byte{0x00, 0x82, 0x01, 0x00}, true, metadata{0, 0, 256, false}},
-	{[]byte{0x30, 0x80}, true, metadata{0, 16, -1, true}},
+	{[]byte{0x81, 0x01}, true, tlvLength{1, false}},
+	{[]byte{0x82, 0x01, 0x00}, true, tlvLength{256, false}},
+	{[]byte{0x80}, true, tlvLength{0, true}},
 	// Errors
-	{[]byte{}, false, metadata{}},
-	{[]byte{0x00}, false, metadata{}},
-	{[]byte{0x00, 0x83, 0x01, 0x00}, false, metadata{}},
-	{[]byte{0x1f, 0x85}, false, metadata{}},
-	{[]byte{0x00, 0xff}, false, metadata{}},
+	{[]byte{}, false, tlvLength{}},
+	{[]byte{0x83, 0x01, 0x00}, false, tlvLength{}},
+	{[]byte{0xff}, false, tlvLength{}},
 }
 
-func TestParseMetadata(t *testing.T) {
-	for i, test := range parseMetadataTests {
-		metadata, _, err := parseMetadata(test.in)
+func TestParseLength(t *testing.T) {
+	for i, test := range parseLengthTests {
+		l, rem, err := parseLength(test.in)
 		if (err == nil) != test.ok {
 			t.Errorf("#%d: Incorrect error result (actual = %v, expected = %v)",
 				i, err == nil, test.ok)
 		}
-		if err == nil && !reflect.DeepEqual(test.out, metadata) {
-			t.Errorf("#%d: Bad result: %v (expected %v)", i, metadata, test.out)
+		if err == nil && !reflect.DeepEqual(test.out, l) {
+			t.Errorf("#%d: Bad result: %v (expected %v)", i, l, test.out)
+		}
+		if err == nil && len(rem) != 0 {
+			t.Errorf("#%d: Did not consume all bytes, %d remaining", i, len(rem))
 		}
 	}
 }
+
