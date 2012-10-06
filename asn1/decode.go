@@ -110,15 +110,38 @@ func (dec *Decoder) Decode(out interface{}) error {
 		return err
 	}
 
+	var b []byte
 	if l.isIndefinite {
-		return SyntaxError{"Indefinite Length Not Supported"}
+		b = make([]byte, 2)
+		_, err = io.ReadFull(dec.r, b)
+		if err != nil {
+			return err
+		}
+		for {
+			if b[len(b)-2] == 0 && b[len(b)-1] == 0 {
+				b = b[:len(b)-2]
+				break
+			}
+			if len(b) == cap(b) {
+				bb := make([]byte, len(b), 2*len(b))
+				copy(bb, b)
+				b = bb
+			}
+			b = b[:len(b)+1]
+			_, err = dec.r.Read(b[len(b)-1:])
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		b = make([]byte, l.length)
+		_, err = io.ReadFull(dec.r, b)
+		if err != nil {
+			return err
+		}
 	}
 
-	result := RawValue{t.class, t.tag, make([]byte, l.length)}
-	_, err = io.ReadFull(dec.r, result.Bytes)
-	if err != nil {
-		return err
-	}
+	result := RawValue{t.class, t.tag, b}
 	v.Set(reflect.ValueOf(result))
 	return nil
 }

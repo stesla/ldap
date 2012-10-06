@@ -65,7 +65,7 @@ func TestDecodeLength(t *testing.T) {
 	runDecodeTests(t, tests, fn)
 }
 
-func TestDecode(t *testing.T) {
+func TestDecodeRawValue(t *testing.T) {
 	fn := func(r io.Reader) (out interface{}, err error) {
 		dec := NewDecoder(r)
 		out = new(RawValue)
@@ -73,7 +73,11 @@ func TestDecode(t *testing.T) {
 		return
 	}
 	tests := []decodeTest{
-		{[]byte{0x05, 0x00}, true, &RawValue{ClassUniversal, TagNull, []byte{}}},
+		{[]byte{0x05, 0x00}, true, &RawValue{0, 5, []byte{}}},
+		{[]byte{0x04, 0x03, 'f', 'o', 'o'}, true, &RawValue{0, 4, []byte("foo")}},
+		{[]byte{0x04, 0x80, 0x00, 0x00}, true, &RawValue{0, 4, []byte{}}},
+		{[]byte{0x04, 0x80, 'b', 'a', 'r', 0x00, 0x00}, true,
+			&RawValue{0, 4, []byte("bar")}},
 	}
 	runDecodeTests(t, tests, fn)
 }
