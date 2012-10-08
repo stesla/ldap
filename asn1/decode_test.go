@@ -92,7 +92,7 @@ func TestDecodeRawValue(t *testing.T) {
 	}
 	tests := []decodeTest{
 		{[]byte{0x05, 0x00}, true, RawValue{0, 5, false, []byte{}}},
-		{[]byte{0x04, 0x03, 'f', 'o', 'o'}, true, RawValue{0, 4, false,[]byte("foo")}},
+		{[]byte{0x04, 0x03, 'f', 'o', 'o'}, true, RawValue{0, 4, false, []byte("foo")}},
 		{[]byte{0x04, 0x80, 0x00, 0x00}, true, RawValue{0, 4, false, []byte{}}},
 		{[]byte{0x04, 0x80, 'b', 'a', 'r', 0x00, 0x00}, true,
 			RawValue{0, 4, false, []byte("bar")}},
