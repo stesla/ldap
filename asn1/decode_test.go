@@ -102,7 +102,7 @@ func TestDecodeRawValue(t *testing.T) {
 	runDecoderTests(t, tests, fn)
 }
 
-func TestDecodeBoolValue(t *testing.T) {
+func TestDecodeBool(t *testing.T) {
 	fn := func(in interface{}) (interface{}, error) {
 		raw := in.(RawValue)
 		return decodeBool(raw)
@@ -111,13 +111,29 @@ func TestDecodeBoolValue(t *testing.T) {
 		{RawValue{ClassUniversal, TagBoolean, false, []byte{0x00}}, true, false},
 		{RawValue{ClassUniversal, TagBoolean, false, []byte{0x01}}, true, true},
 		{RawValue{ClassUniversal, TagBoolean, false, []byte{0xff}}, true, true},
-		{RawValue{ClassUniversal, TagInteger, false, []byte{0xff}}, false, false},
-		{RawValue{ClassUniversal, TagBoolean, false, []byte{}}, false, false},
-		{RawValue{ClassUniversal, TagBoolean, false, []byte{0x00, 0x01}}, false, false},
-		{RawValue{ClassUniversal, TagBoolean, true, []byte{0x00}}, false, false},
+		{RawValue{ClassUniversal, TagInteger, false, []byte{0xff}}, false, nil},
+		{RawValue{ClassUniversal, TagBoolean, false, []byte{}}, false, nil},
+		{RawValue{ClassUniversal, TagBoolean, false, []byte{0x00, 0x01}}, false, nil},
+		{RawValue{ClassUniversal, TagBoolean, true, []byte{0x00}}, false, nil},
 		{RawValue{ClassApplication, 1, false, []byte{0x00}}, true, false},
 		{RawValue{ClassApplication, 2, false, []byte{0x01}}, true, true},
 		{RawValue{ClassApplication, 3, false, []byte{0xff}}, true, true},
+	}
+	runDecoderTests(t, tests, fn)
+}
+
+func TestDecodeByteSlice(t *testing.T) {
+	fn := func(in interface{}) (interface{}, error) {
+		raw := in.(RawValue)
+		return decodeByteSlice(raw)
+	}
+	tests := []decoderTest{
+		{RawValue{ClassUniversal, TagOctetString, false, []byte{}}, true, []byte{}},
+		{RawValue{ClassUniversal, TagOctetString, false, []byte("foo")}, true, []byte("foo")},
+		{RawValue{ClassUniversal, TagBoolean, false, []byte{}}, false, nil},
+		//TODO: constructed octet strings
+		{RawValue{ClassUniversal, TagOctetString, true, []byte{}}, false, nil},
+		{RawValue{ClassApplication, 1, false, []byte("bar")}, true, []byte("bar")},
 	}
 	runDecoderTests(t, tests, fn)
 }

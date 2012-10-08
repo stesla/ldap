@@ -81,6 +81,7 @@ func NewDecoder(r io.Reader) *Decoder {
 
 var (
 	boolType     = reflect.TypeOf(true)
+	byteSliceType = reflect.TypeOf([]byte{})
 	rawValueType = reflect.TypeOf(RawValue{})
 )
 
@@ -150,6 +151,8 @@ func decodeValue(raw RawValue, typ reflect.Type) (out interface{}, err error) {
 		out = raw
 	case boolType:
 		out, err = decodeBool(raw)
+	case byteSliceType:
+		out, err = decodeByteSlice(raw)
 	default:
 		err = StructuralError{fmt.Sprintf("Unsupported Type: %v", typ)}
 	}
@@ -159,7 +162,7 @@ func decodeValue(raw RawValue, typ reflect.Type) (out interface{}, err error) {
 func decodeBool(raw RawValue) (out interface{}, err error) {
 	switch {
 	case raw.Tag != TagBoolean && raw.Class == ClassUniversal:
-		err = StructuralError{fmt.Sprintf("tag mismatch (class = %d, tag = %d)", raw.Class, raw.Tag)}
+		err = tagMismatch(raw)
 	case raw.IsConstructed:
 		err = SyntaxError{"booleans must be primitive"}
 	case len(raw.Bytes) != 1:
@@ -168,4 +171,22 @@ func decodeBool(raw RawValue) (out interface{}, err error) {
 		out = raw.Bytes[0] != 0
 	}
 	return
+}
+
+func decodeByteSlice(raw RawValue) (out interface{}, err error) {
+	switch {
+	case raw.Tag != TagOctetString && raw.Class == ClassUniversal:
+		err = tagMismatch(raw)
+	case raw.IsConstructed:
+		err = SyntaxError{"constructed values are not supported"}
+	default:
+		b := make([]byte, len(raw.Bytes))
+		copy(b, raw.Bytes)
+		out = b
+	}
+	return
+}
+
+func tagMismatch(raw RawValue) error {
+	return StructuralError{fmt.Sprintf("tag mismatch (class = %d, tag = %d)", raw.Class, raw.Tag)}
 }
