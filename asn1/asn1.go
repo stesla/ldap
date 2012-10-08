@@ -52,7 +52,7 @@ type SyntaxError struct {
 func (e SyntaxError) Error() string { return "ASN.1 Syntax Error: " + e.Msg }
 
 type RawValue struct {
-	Class, Tag int
-	IsCompound bool
-	Bytes      []byte
+	Class, Tag    int
+	IsConstructed bool
+	Bytes         []byte
 }

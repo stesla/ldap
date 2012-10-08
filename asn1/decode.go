@@ -80,6 +80,7 @@ func NewDecoder(r io.Reader) *Decoder {
 }
 
 var (
+	boolType     = reflect.TypeOf(true)
 	rawValueType = reflect.TypeOf(RawValue{})
 )
 
@@ -89,11 +90,10 @@ func (dec *Decoder) Decode(out interface{}) (err error) {
 		return
 	}
 
-	switch v := reflect.ValueOf(out).Elem(); v.Type() {
-	case rawValueType:
-		v.Set(reflect.ValueOf(raw))
-	default:
-		err = StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
+	v := reflect.ValueOf(out).Elem()
+	result, err := decodeValue(raw, v.Type())
+	if err == nil {
+		v.Set(reflect.ValueOf(result))
 	}
 	return
 }
@@ -101,7 +101,7 @@ func (dec *Decoder) Decode(out interface{}) (err error) {
 func (dec *Decoder) decodeRawValue() (out RawValue, err error) {
 	buf := make([]byte, 10)
 
-	out.Class, out.Tag, out.IsCompound, err = decodeType(dec.r, buf)
+	out.Class, out.Tag, out.IsConstructed, err = decodeType(dec.r, buf)
 	if err != nil {
 		return
 	}
@@ -140,6 +140,32 @@ func (dec *Decoder) decodeRawValue() (out RawValue, err error) {
 		if err != nil {
 			return
 		}
+	}
+	return
+}
+
+func decodeValue(raw RawValue, typ reflect.Type) (out interface{}, err error) {
+	switch typ {
+	case rawValueType:
+		out = raw
+	case boolType:
+		out, err = decodeBool(raw)
+	default:
+		err = StructuralError{fmt.Sprintf("Unsupported Type: %v", typ)}
+	}
+	return
+}
+
+func decodeBool(raw RawValue) (out interface{}, err error) {
+	switch {
+	case raw.Tag != TagBoolean && raw.Class == ClassUniversal:
+		err = StructuralError{fmt.Sprintf("tag mismatch (class = %d, tag = %d)", raw.Class, raw.Tag)}
+	case raw.IsConstructed:
+		err = SyntaxError{"booleans must be primitive"}
+	case len(raw.Bytes) != 1:
+		err = SyntaxError{fmt.Sprintf("booleans must be only one byte (len = %d)", len(raw.Bytes))}
+	default:
+		out = raw.Bytes[0] != 0
 	}
 	return
 }
