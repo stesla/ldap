@@ -82,6 +82,7 @@ func NewDecoder(r io.Reader) *Decoder {
 var (
 	boolType     = reflect.TypeOf(true)
 	byteSliceType = reflect.TypeOf([]byte{})
+	enumeratedType = reflect.TypeOf(Enumerated(0))
 	intType = reflect.TypeOf(int(0))
 	int64Type = reflect.TypeOf(int64(0))
 	nullType = reflect.TypeOf(Null{})
@@ -156,6 +157,8 @@ func decodeValue(raw RawValue, typ reflect.Type) (out interface{}, err error) {
 		out, err = decodeBool(raw)
 	case byteSliceType:
 		out, err = decodeByteSlice(raw)
+	case enumeratedType:
+		out, err = decodeEnumerated(raw)
 	case intType:
 		out, err = decodeInt(raw)
 	case int64Type:
@@ -241,7 +244,29 @@ func decodeInt(raw RawValue) (out interface{}, err error) {
 	if i := int(ret64); ret64 == int64(i) {
 		out = i
 	} else {
-		err = StructuralError{"integer overflow %d %d"}
+		err = StructuralError{"integer overflow"}
+	}
+	return
+}
+
+func decodeEnumerated(raw RawValue) (out interface{}, err error) {
+	switch {
+	case raw.Tag != TagEnumerated && raw.Class == ClassUniversal:
+		err = tagMismatch(raw)
+	case raw.IsConstructed:
+		err = SyntaxError{"enumerated must be primitive"}
+	case len(raw.Bytes) == 0:
+		err = SyntaxError{"enumerated must have at least one byte of content"}
+	default:
+		var i int64
+		for _, b := range raw.Bytes {
+			i = i<<8 + int64(b)
+		}
+		if e := Enumerated(i); i == int64(e) {
+			out = e
+		} else {
+			err = StructuralError{"integer overflow"}
+		}
 	}
 	return
 }

@@ -58,3 +58,5 @@ type RawValue struct {
 }
 
 type Null struct {}
+
+type Enumerated int

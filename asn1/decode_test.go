@@ -182,10 +182,29 @@ func TestDecodeInt(t *testing.T) {
 		{RawValue{ClassUniversal, TagInteger, false, []byte{0x00}}, true, int(0)},
 		{RawValue{ClassUniversal, TagInteger, false, []byte{42}}, true, int(42)},
 		{RawValue{ClassUniversal, TagInteger, false, []byte{0x12, 0x34}}, true, int(0x1234)},
+		{RawValue{ClassUniversal, TagBoolean, false, nil}, false, nil},
 		{RawValue{ClassApplication, 1, false, []byte{0x02}}, true, int(2)},
 		{RawValue{ClassApplication, 2, true, nil}, false, nil},
 		{RawValue{ClassApplication, 3, false, []byte{}}, false, nil},
 		{RawValue{ClassUniversal, TagInteger, false, []byte{0x01, 0x00, 0x00, 0x00, 0x01}}, false, nil},
+	}
+	runDecoderTests(t, tests, fn)
+}
+
+func TestDecodeEnumerated(t *testing.T) {
+	fn := func(in interface{}) (interface{}, error) {
+		raw := in.(RawValue)
+		return decodeEnumerated(raw)
+	}
+	tests := []decoderTest{
+		{RawValue{ClassUniversal, TagEnumerated, false, []byte{0x00}}, true, Enumerated(0)},
+		{RawValue{ClassUniversal, TagEnumerated, false, []byte{42}}, true, Enumerated(42)},
+		{RawValue{ClassUniversal, TagEnumerated, false, []byte{0x12, 0x34}}, true, Enumerated(0x1234)},
+		{RawValue{ClassUniversal, TagBoolean, false, nil}, false, nil},
+		{RawValue{ClassApplication, 1, false, []byte{0x02}}, true, Enumerated(2)},
+		{RawValue{ClassApplication, 2, true, nil}, false, nil},
+		{RawValue{ClassApplication, 3, false, []byte{}}, false, nil},
+		{RawValue{ClassUniversal, TagEnumerated, false, []byte{0x01, 0x00, 0x00, 0x00, 0x01}}, false, nil},
 	}
 	runDecoderTests(t, tests, fn)
 }
