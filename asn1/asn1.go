@@ -56,3 +56,5 @@ type RawValue struct {
 	IsConstructed bool
 	Bytes         []byte
 }
+
+type Null struct {}

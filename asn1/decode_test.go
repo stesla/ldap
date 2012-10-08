@@ -137,3 +137,20 @@ func TestDecodeByteSlice(t *testing.T) {
 	}
 	runDecoderTests(t, tests, fn)
 }
+
+func TestDecodeNull(t *testing.T) {
+	fn := func(in interface{}) (interface{}, error) {
+		raw := in.(RawValue)
+		return decodeNull(raw)
+	}
+	tests := []decoderTest{
+		{RawValue{ClassUniversal, TagNull, false, nil}, true, Null{}},
+		{RawValue{ClassUniversal, TagNull, false, []byte{0x01}}, false, Null{}},
+		{RawValue{ClassUniversal, TagNull, true, nil}, false, nil},
+		{RawValue{ClassUniversal, TagBoolean, false, nil}, false, nil},
+		{RawValue{ClassApplication, 1, false, nil}, true, Null{}},
+		{RawValue{ClassApplication, 2, true, nil}, false, nil},
+		{RawValue{ClassApplication, 3, false, []byte{0x01}}, false, nil},
+	}
+	runDecoderTests(t, tests, fn)
+}

@@ -82,6 +82,7 @@ func NewDecoder(r io.Reader) *Decoder {
 var (
 	boolType     = reflect.TypeOf(true)
 	byteSliceType = reflect.TypeOf([]byte{})
+	nullType = reflect.TypeOf(Null{})
 	rawValueType = reflect.TypeOf(RawValue{})
 )
 
@@ -153,6 +154,8 @@ func decodeValue(raw RawValue, typ reflect.Type) (out interface{}, err error) {
 		out, err = decodeBool(raw)
 	case byteSliceType:
 		out, err = decodeByteSlice(raw)
+	case nullType:
+		out, err = decodeNull(raw)
 	default:
 		err = StructuralError{fmt.Sprintf("Unsupported Type: %v", typ)}
 	}
@@ -189,4 +192,18 @@ func decodeByteSlice(raw RawValue) (out interface{}, err error) {
 
 func tagMismatch(raw RawValue) error {
 	return StructuralError{fmt.Sprintf("tag mismatch (class = %d, tag = %d)", raw.Class, raw.Tag)}
+}
+
+func decodeNull(raw RawValue) (out interface{}, err error) {
+	switch {
+	case raw.Tag != TagNull && raw.Class == ClassUniversal:
+		err = tagMismatch(raw)
+	case raw.IsConstructed:
+		err = SyntaxError{"null must be primitive"}
+	case len(raw.Bytes) != 0:
+		err = SyntaxError{fmt.Sprintf("null must not have content (len = %d)", len(raw.Bytes))}
+	default:
+		out = Null{}
+	}
+	return
 }
