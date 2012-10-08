@@ -1,6 +1,7 @@
 package asn1
 
 import (
+	"fmt"
 	"io"
 	"reflect"
 )
@@ -92,7 +93,7 @@ func (dec *Decoder) Decode(out interface{}) (err error) {
 	case rawValueType:
 		v.Set(reflect.ValueOf(raw))
 	default:
-		err = StructuralError{"Unsupported Type"}
+		err = StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
 	}
 	return
 }
