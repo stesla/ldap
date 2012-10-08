@@ -5,27 +5,17 @@ import (
 	"reflect"
 )
 
-type tlvType struct {
-	class, tag int
-	isCompound bool
-}
-
-type tlvLength struct {
-	length       int
-	isIndefinite bool
-}
-
-func decodeType(r io.Reader, buf []byte) (out tlvType, err error) {
+func decodeType(r io.Reader, buf []byte) (class, tag int, isCompound bool, err error) {
 	_, err = r.Read(buf[0:1])
 	if err != nil {
 		return
 	}
 
-	out.class = int(buf[0] >> 6)
-	out.isCompound = buf[0]&0x20 == 0x20
+	class = int(buf[0] >> 6)
+	isCompound = buf[0]&0x20 == 0x20
 
-	if tag := buf[0] & 0x1f; tag < 0x1f {
-		out.tag = int(tag)
+	if c := buf[0] & 0x1f; c < 0x1f {
+		tag = int(c)
 	} else {
 		_, err = r.Read(buf[0:1])
 		if err != nil {
@@ -38,7 +28,7 @@ func decodeType(r io.Reader, buf []byte) (out tlvType, err error) {
 		}
 
 		for {
-			out.tag = out.tag<<7 | int(buf[0]&0x1f)
+			tag = tag<<7 | int(buf[0]&0x1f)
 
 			if buf[0]&0x80 == 0 {
 				break
@@ -53,28 +43,28 @@ func decodeType(r io.Reader, buf []byte) (out tlvType, err error) {
 	return
 }
 
-func decodeLength(r io.Reader, buf []byte) (out tlvLength, err error) {
+func decodeLength(r io.Reader, buf []byte) (length int, isIndefinite bool, err error) {
 	_, err = r.Read(buf[0:1])
 	if err != nil {
 		return
 	}
 
-	if length := buf[0]; length < 0x80 {
-		out.length = int(length)
-	} else if length == 0x80 {
-		out.isIndefinite = true
-	} else if length == 0xff {
+	if c := buf[0]; c < 0x80 {
+		length = int(c)
+	} else if c == 0x80 {
+		isIndefinite = true
+	} else if c == 0xff {
 		err = SyntaxError{"long-form length"}
 		return
 	} else {
 		var width int
-		n := length & 0x7f
+		n := c & 0x7f
 		width, err = io.ReadFull(r, buf[0:n])
 		if err != nil {
 			return
 		}
 		for _, b := range buf[0:width] {
-			out.length = out.length<<8 | int(b)
+			length = length<<8 | int(b)
 		}
 	}
 	return
@@ -92,30 +82,39 @@ var (
 	rawValueType = reflect.TypeOf(RawValue{})
 )
 
-func (dec *Decoder) Decode(out interface{}) error {
-	v := reflect.ValueOf(out).Elem()
-	if v.Type() != rawValueType {
-		return StructuralError{"Unsupported Type"}
+func (dec *Decoder) Decode(out interface{}) (err error) {
+	raw, err := dec.decodeRawValue()
+	if err != nil {
+		return
 	}
 
+	switch v := reflect.ValueOf(out).Elem(); v.Type() {
+	case rawValueType:
+		v.Set(reflect.ValueOf(raw))
+	default:
+		err = StructuralError{"Unsupported Type"}
+	}
+	return
+}
+
+func (dec *Decoder) decodeRawValue() (out RawValue, err error) {
 	buf := make([]byte, 10)
 
-	t, err := decodeType(dec.r, buf)
+	out.Class, out.Tag, out.IsCompound, err = decodeType(dec.r, buf)
 	if err != nil {
-		return err
+		return
 	}
 
-	l, err := decodeLength(dec.r, buf)
+	length, isIndefinite, err := decodeLength(dec.r, buf)
 	if err != nil {
-		return err
+		return
 	}
 
-	var b []byte
-	if l.isIndefinite {
-		b = make([]byte, 2)
+	if isIndefinite {
+		b := make([]byte, 2)
 		_, err = io.ReadFull(dec.r, b)
 		if err != nil {
-			return err
+			return
 		}
 		for {
 			if b[len(b)-2] == 0 && b[len(b)-1] == 0 {
@@ -130,18 +129,16 @@ func (dec *Decoder) Decode(out interface{}) error {
 			b = b[:len(b)+1]
 			_, err = dec.r.Read(b[len(b)-1:])
 			if err != nil {
-				return err
+				return
 			}
 		}
+		out.Bytes = b
 	} else {
-		b = make([]byte, l.length)
-		_, err = io.ReadFull(dec.r, b)
+		out.Bytes = make([]byte, length)
+		_, err = io.ReadFull(dec.r, out.Bytes)
 		if err != nil {
-			return err
+			return
 		}
 	}
-
-	result := RawValue{t.class, t.tag, b}
-	v.Set(reflect.ValueOf(result))
-	return nil
+	return
 }

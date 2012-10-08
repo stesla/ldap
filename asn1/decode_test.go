@@ -28,10 +28,19 @@ func runDecodeTests(t *testing.T, tests []decodeTest, decode decodeFn) {
 	}
 }
 
+type tlvType struct {
+	class, tag int
+	isCompound bool
+}
+
 func TestDecodeType(t *testing.T) {
 	fn := func(r io.Reader) (interface{}, error) {
 		buf := make([]byte, 8)
-		return decodeType(r, buf)
+		class, tag, isCompound, err := decodeType(r, buf)
+		if err != nil {
+			return nil, err
+		}
+		return tlvType{class, tag, isCompound}, nil
 	}
 	tests := []decodeTest{
 		{[]byte{}, false, tlvType{}},
@@ -49,10 +58,19 @@ func TestDecodeType(t *testing.T) {
 	runDecodeTests(t, tests, fn)
 }
 
+type tlvLength struct {
+	length       int
+	isIndefinite bool
+}
+
 func TestDecodeLength(t *testing.T) {
 	fn := func(r io.Reader) (interface{}, error) {
 		buf := make([]byte, 8)
-		return decodeLength(r, buf)
+		length, isIndefinite, err := decodeLength(r, buf)
+		if err != nil {
+			return nil, err
+		}
+		return tlvLength{length, isIndefinite}, nil
 	}
 	tests := []decodeTest{
 		{[]byte{0x81, 0x01}, true, tlvLength{1, false}},
@@ -66,18 +84,18 @@ func TestDecodeLength(t *testing.T) {
 }
 
 func TestDecodeRawValue(t *testing.T) {
-	fn := func(r io.Reader) (out interface{}, err error) {
+	fn := func(r io.Reader) (interface{}, error) {
 		dec := NewDecoder(r)
-		out = new(RawValue)
-		err = dec.Decode(out)
-		return
+		out := RawValue{}
+		err := dec.Decode(&out)
+		return out, err
 	}
 	tests := []decodeTest{
-		{[]byte{0x05, 0x00}, true, &RawValue{0, 5, []byte{}}},
-		{[]byte{0x04, 0x03, 'f', 'o', 'o'}, true, &RawValue{0, 4, []byte("foo")}},
-		{[]byte{0x04, 0x80, 0x00, 0x00}, true, &RawValue{0, 4, []byte{}}},
+		{[]byte{0x05, 0x00}, true, RawValue{0, 5, false, []byte{}}},
+		{[]byte{0x04, 0x03, 'f', 'o', 'o'}, true, RawValue{0, 4, false,[]byte("foo")}},
+		{[]byte{0x04, 0x80, 0x00, 0x00}, true, RawValue{0, 4, false, []byte{}}},
 		{[]byte{0x04, 0x80, 'b', 'a', 'r', 0x00, 0x00}, true,
-			&RawValue{0, 4, []byte("bar")}},
+			RawValue{0, 4, false, []byte("bar")}},
 	}
 	runDecodeTests(t, tests, fn)
 }
