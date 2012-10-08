@@ -82,6 +82,8 @@ func NewDecoder(r io.Reader) *Decoder {
 var (
 	boolType     = reflect.TypeOf(true)
 	byteSliceType = reflect.TypeOf([]byte{})
+	intType = reflect.TypeOf(int(0))
+	int64Type = reflect.TypeOf(int64(0))
 	nullType = reflect.TypeOf(Null{})
 	rawValueType = reflect.TypeOf(RawValue{})
 )
@@ -154,6 +156,10 @@ func decodeValue(raw RawValue, typ reflect.Type) (out interface{}, err error) {
 		out, err = decodeBool(raw)
 	case byteSliceType:
 		out, err = decodeByteSlice(raw)
+	case intType:
+		out, err = decodeInt(raw)
+	case int64Type:
+		out, err = decodeInt64(raw)
 	case nullType:
 		out, err = decodeNull(raw)
 	default:
@@ -204,6 +210,38 @@ func decodeNull(raw RawValue) (out interface{}, err error) {
 		err = SyntaxError{fmt.Sprintf("null must not have content (len = %d)", len(raw.Bytes))}
 	default:
 		out = Null{}
+	}
+	return
+}
+
+func decodeInt64(raw RawValue) (out interface{}, err error) {
+	switch {
+	case raw.Tag != TagInteger && raw.Class == ClassUniversal:
+		err = tagMismatch(raw)
+	case raw.IsConstructed:
+		err = SyntaxError{"integer must be primitive"}
+	case len(raw.Bytes) == 0:
+		err = SyntaxError{"integer must have at least one byte of content"}
+	default:
+		var i int64
+		for _, b := range raw.Bytes {
+			i = i<<8 + int64(b)
+		}
+		out = i
+	}
+	return
+}
+
+func decodeInt(raw RawValue) (out interface{}, err error) {
+	ret, err := decodeInt64(raw)
+	if err != nil {
+		return
+	}
+	ret64 := ret.(int64)
+	if i := int(ret64); ret64 == int64(i) {
+		out = i
+	} else {
+		err = StructuralError{"integer overflow %d %d"}
 	}
 	return
 }

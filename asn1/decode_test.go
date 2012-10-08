@@ -154,3 +154,38 @@ func TestDecodeNull(t *testing.T) {
 	}
 	runDecoderTests(t, tests, fn)
 }
+
+func TestDecodeInt64(t *testing.T) {
+	fn := func(in interface{}) (interface{}, error) {
+		raw := in.(RawValue)
+		return decodeInt64(raw)
+	}
+	tests := []decoderTest{
+		{RawValue{ClassUniversal, TagInteger, false, []byte{0x00}}, true, int64(0)},
+		{RawValue{ClassUniversal, TagInteger, false, []byte{42}}, true, int64(42)},
+		{RawValue{ClassUniversal, TagInteger, false, []byte{0x12, 0x34}}, true, int64(0x1234)},
+		{RawValue{ClassUniversal, TagInteger, false, []byte{0x01, 0x00, 0x00, 0x00, 0x01}}, true, int64(0x100000001)},
+		{RawValue{ClassUniversal, TagBoolean, false, nil}, false, nil},
+		{RawValue{ClassApplication, 1, false, []byte{0x02}}, true, int64(2)},
+		{RawValue{ClassApplication, 2, true, nil}, false, nil},
+		{RawValue{ClassApplication, 3, false, []byte{}}, false, nil},
+	}
+	runDecoderTests(t, tests, fn)
+}
+
+func TestDecodeInt(t *testing.T) {
+	fn := func(in interface{}) (interface{}, error) {
+		raw := in.(RawValue)
+		return decodeInt(raw)
+	}
+	tests := []decoderTest{
+		{RawValue{ClassUniversal, TagInteger, false, []byte{0x00}}, true, int(0)},
+		{RawValue{ClassUniversal, TagInteger, false, []byte{42}}, true, int(42)},
+		{RawValue{ClassUniversal, TagInteger, false, []byte{0x12, 0x34}}, true, int(0x1234)},
+		{RawValue{ClassApplication, 1, false, []byte{0x02}}, true, int(2)},
+		{RawValue{ClassApplication, 2, true, nil}, false, nil},
+		{RawValue{ClassApplication, 3, false, []byte{}}, false, nil},
+		{RawValue{ClassUniversal, TagInteger, false, []byte{0x01, 0x00, 0x00, 0x00, 0x01}}, false, nil},
+	}
+	runDecoderTests(t, tests, fn)
+}
