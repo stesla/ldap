@@ -88,12 +88,14 @@ func TestDecodeLength(t *testing.T) {
 	runDecoderTests(t, tests, fn)
 }
 
-func TestDecodeRawValue(t *testing.T) {
-	fn := sliceDecoderFn(func (dec *Decoder) (interface{}, error) {
-		out := RawValue{}
-		err := dec.Decode(&out)
-		return out, err
+func decodeValueFn(out interface{}) decodeFn {
+	return sliceDecoderFn(func (dec *Decoder) (interface{}, error) {
+		err := dec.Decode(out)
+		return reflect.ValueOf(out).Elem().Interface(), err
 	})
+}
+
+func TestDecodeRawValue(t *testing.T) {
 	tests := []decoderTest{
 		{[]byte{0x05, 0x00}, true, RawValue{0, 5, false, []byte{}}},
 		{[]byte{0x04, 0x03, 'f', 'o', 'o'}, true, RawValue{0, 4, false, []byte("foo")}},
@@ -101,74 +103,60 @@ func TestDecodeRawValue(t *testing.T) {
 		{[]byte{0x04, 0x80, 'b', 'a', 'r', 0x00, 0x00}, true,
 			RawValue{0, 4, false, []byte("bar")}},
 	}
-	runDecoderTests(t, tests, fn)
+	var out RawValue
+	runDecoderTests(t, tests, decodeValueFn(&out))
 }
 
 func TestDecodeBool(t *testing.T) {
-	fn := func(in interface{}) (interface{}, error) {
-		raw := in.(RawValue)
-		return decodeBool(raw)
-	}
 	tests := []decoderTest{
-		{RawValue{ClassUniversal, TagBoolean, false, []byte{0x00}}, true, false},
-		{RawValue{ClassUniversal, TagBoolean, false, []byte{0x01}}, true, true},
-		{RawValue{ClassUniversal, TagBoolean, false, []byte{0xff}}, true, true},
-		{RawValue{ClassUniversal, TagBoolean, false, []byte{}}, false, nil},
-		{RawValue{ClassUniversal, TagBoolean, false, []byte{0x00, 0x01}}, false, nil},
+		{[]byte{0x01, 0x01, 0x00}, true, false},
+		{[]byte{0x01, 0x01, 0x01}, true, true},
+		{[]byte{0x01, 0x01, 0xff}, true, true},
+		{[]byte{0x01, 0x00}, false, nil},
+		{[]byte{0x01, 0x02, 0x00, 0x01}, false, nil},
 	}
-	runDecoderTests(t, tests, fn)
+	var out bool
+	runDecoderTests(t, tests, decodeValueFn(&out))
 }
 
 func TestDecodeByteSlice(t *testing.T) {
-	fn := func(in interface{}) (interface{}, error) {
-		raw := in.(RawValue)
-		return decodeByteSlice(raw)
-	}
 	tests := []decoderTest{
-		{RawValue{ClassUniversal, TagOctetString, false, []byte{}}, true, []byte{}},
-		{RawValue{ClassUniversal, TagOctetString, false, []byte("foo")}, true, []byte("foo")},
+		{[]byte{0x04, 0x00}, true, []byte{}},
+		{[]byte{0x04, 0x03, 'f', 'o', 'o'}, true, []byte("foo")},
 	}
-	runDecoderTests(t, tests, fn)
+	var out []byte
+	runDecoderTests(t, tests, decodeValueFn(&out))
 }
 
 func TestDecodeNull(t *testing.T) {
-	fn := func(in interface{}) (interface{}, error) {
-		raw := in.(RawValue)
-		return decodeNull(raw)
-	}
 	tests := []decoderTest{
-		{RawValue{ClassUniversal, TagNull, false, nil}, true, Null{}},
-		{RawValue{ClassUniversal, TagNull, false, []byte{0x01}}, false, Null{}},
+		{[]byte{0x05, 0x00}, true, Null{}},
+		{[]byte{0x05, 0x01, 0x01}, false, nil},
 	}
-	runDecoderTests(t, tests, fn)
+	var out Null
+	runDecoderTests(t, tests, decodeValueFn(&out))
 }
 
 func TestDecodeInt64(t *testing.T) {
-	fn := func(in interface{}) (interface{}, error) {
-		raw := in.(RawValue)
-		return decodeInt64(raw)
-	}
 	tests := []decoderTest{
-		{RawValue{ClassUniversal, TagInteger, false, []byte{0x00}}, true, int64(0)},
-		{RawValue{ClassUniversal, TagInteger, false, []byte{42}}, true, int64(42)},
-		{RawValue{ClassUniversal, TagInteger, false, []byte{0x12, 0x34}}, true, int64(0x1234)},
-		{RawValue{ClassUniversal, TagInteger, false, []byte{0x01, 0x00, 0x00, 0x00, 0x01}}, true, int64(0x100000001)},
+		{[]byte{0x02, 0x01, 0x00}, true, int64(0)},
+		{[]byte{0x02, 0x01, 0x2a}, true, int64(42)},
+		{[]byte{0x02, 0x02, 0x12, 0x34}, true, int64(0x1234)},
+		{[]byte{0x02, 0x05, 0x01, 0x00, 0x00, 0x00, 0x01}, true, int64(0x100000001)},
 	}
-	runDecoderTests(t, tests, fn)
+	var out int64
+	runDecoderTests(t, tests, decodeValueFn(&out))
 }
 
 func TestDecodeInt(t *testing.T) {
-	fn := func(in interface{}) (interface{}, error) {
-		raw := in.(RawValue)
-		return decodeInt(raw)
-	}
 	tests := []decoderTest{
-		{RawValue{ClassUniversal, TagInteger, false, []byte{0x00}}, true, int(0)},
-		{RawValue{ClassUniversal, TagInteger, false, []byte{42}}, true, int(42)},
-		{RawValue{ClassUniversal, TagInteger, false, []byte{0x12, 0x34}}, true, int(0x1234)},
-		{RawValue{ClassUniversal, TagInteger, false, []byte{0x01, 0x00, 0x00, 0x00, 0x01}}, false, nil},
+		{[]byte{0x02, 0x01, 0x00}, true, int(0)},
+		{[]byte{0x02, 0x01, 0x2a}, true, int(42)},
+		{[]byte{0x02, 0x02, 0x12, 0x34}, true, int(0x1234)},
+		{[]byte{0x02, 0x05, 0x01, 0x00, 0x00, 0x00, 0x01}, false, nil},
 	}
-	runDecoderTests(t, tests, fn)
+	var out int
+	runDecoderTests(t, tests, decodeValueFn(&out))
 }
 
 type checkTagTest struct {
