@@ -19,8 +19,12 @@ func NewDecoder(r io.Reader) *Decoder {
 	}
 }
 
-func (dec *Decoder) Decode(out interface{}) (err error) {
+func (dec *Decoder) Decode(out interface{}) error {
 	v := reflect.ValueOf(out).Elem()
+	return dec.decodeField(v)
+}
+
+func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 	raw, err := dec.decodeRawValue()
 	if err != nil {
 		return
