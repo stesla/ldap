@@ -164,8 +164,7 @@ func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 			// TODO: ASN.1 supports constructed octet strings
 			ok = !constructed && v.Type() == byteSliceType
 		case TagInteger:
-			k := v.Kind()
-			ok = !constructed && (k == reflect.Int || k == reflect.Int32 || k == reflect.Int64)
+			ok = !constructed && reflect.Int <= v.Kind() && v.Kind() <= reflect.Int64
 		case TagNull:
 			ok = !constructed && v.Type() == nullType
 		}
@@ -197,7 +196,7 @@ func decodeValue(raw RawValue, v reflect.Value) (err error) {
 	switch v.Kind() {
 	case reflect.Bool:
 		return decodeBool(raw, v)
-	case reflect.Int64, reflect.Int32, reflect.Int:
+	case reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8, reflect.Int:
 		return decodeInteger(raw, v)
 	}
 

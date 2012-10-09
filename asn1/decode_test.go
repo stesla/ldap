@@ -165,6 +165,29 @@ func TestDecodeInt32(t *testing.T) {
 	runDecoderTests(t, tests, withValue(&out))
 }
 
+func TestDecodeInt16(t *testing.T) {
+	tests := []decoderTest{
+		{[]byte{0x02, 0x01, 0x00}, true, int16(0)},
+		{[]byte{0x02, 0x01, 0x2a}, true, int16(42)},
+		{[]byte{0x02, 0x02, 0x12, 0x34}, true, int16(0x1234)},
+		{[]byte{0x02, 0x03, 0x01, 0x00, 0x01}, false, nil},
+		{[]byte{0x22, 0x01, 0x00}, false, nil},
+	}
+	var out int16
+	runDecoderTests(t, tests, withValue(&out))
+}
+
+func TestDecodeInt8(t *testing.T) {
+	tests := []decoderTest{
+		{[]byte{0x02, 0x01, 0x00}, true, int8(0)},
+		{[]byte{0x02, 0x01, 0x2a}, true, int8(42)},
+		{[]byte{0x02, 0x02, 0x01, 0x01}, false, nil},
+		{[]byte{0x22, 0x01, 0x00}, false, nil},
+	}
+	var out int8
+	runDecoderTests(t, tests, withValue(&out))
+}
+
 func TestDecodeInt(t *testing.T) {
 	tests := []decoderTest{
 		{[]byte{0x02, 0x01, 0x00}, true, int(0)},
