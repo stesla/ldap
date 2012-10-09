@@ -32,16 +32,22 @@ type tlvType struct {
 	isConstructed bool
 }
 
-func TestDecodeType(t *testing.T) {
-	fn := func(in interface{}) (interface{}, error) {
+func sliceDecoderFn(fn func(*Decoder) (interface{}, error)) decodeFn {
+	return func(in interface{}) (interface{}, error) {
 		r := bytes.NewReader(in.([]byte))
 		dec := NewDecoder(r)
+		return fn(dec)
+	}
+}
+
+func TestDecodeType(t *testing.T) {
+	fn := sliceDecoderFn(func (dec *Decoder) (interface{}, error) {
 		class, tag, isConstructed, err := dec.decodeType()
 		if err != nil {
 			return nil, err
 		}
 		return tlvType{class, tag, isConstructed}, nil
-	}
+	})
 	tests := []decoderTest{
 		{[]byte{}, false, tlvType{}},
 		{[]byte{0x1f, 0x85}, false, tlvType{}},
@@ -64,15 +70,13 @@ type tlvLength struct {
 }
 
 func TestDecodeLength(t *testing.T) {
-	fn := func(in interface{}) (interface{}, error) {
-		r := bytes.NewReader(in.([]byte))
-		dec := NewDecoder(r)
+	fn := sliceDecoderFn(func (dec *Decoder) (interface{}, error) {
 		length, isIndefinite, err := dec.decodeLength()
 		if err != nil {
 			return nil, err
 		}
 		return tlvLength{length, isIndefinite}, nil
-	}
+	})
 	tests := []decoderTest{
 		{[]byte{0x81, 0x01}, true, tlvLength{1, false}},
 		{[]byte{0x82, 0x01, 0x00}, true, tlvLength{256, false}},
@@ -85,13 +89,11 @@ func TestDecodeLength(t *testing.T) {
 }
 
 func TestDecodeRawValue(t *testing.T) {
-	fn := func(in interface{}) (interface{}, error) {
-		r := bytes.NewReader(in.([]byte))
-		dec := NewDecoder(r)
+	fn := sliceDecoderFn(func (dec *Decoder) (interface{}, error) {
 		out := RawValue{}
 		err := dec.Decode(&out)
 		return out, err
-	}
+	})
 	tests := []decoderTest{
 		{[]byte{0x05, 0x00}, true, RawValue{0, 5, false, []byte{}}},
 		{[]byte{0x04, 0x03, 'f', 'o', 'o'}, true, RawValue{0, 4, false, []byte("foo")}},
