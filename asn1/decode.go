@@ -162,33 +162,29 @@ var (
 )
 
 func checkTag(class, tag int, v reflect.Value) (err error) {
+	var ok bool
+
 	switch class {
 	case ClassUniversal:
 		switch tag {
 		case TagBoolean:
-			if v.Kind() != reflect.Bool {
-				err = StructuralError{fmt.Sprintf("ASN.1 boolean value cannot be marshaled into %v", v.Type())}
-			}
+			ok = v.Kind() == reflect.Bool
 		case TagOctetString:
-			if v.Type() != byteSliceType {
-				err = StructuralError{fmt.Sprintf("ASN.1 octet string value cannot be marshaled into %v", v.Type())}
-			}
+			ok = v.Type() == byteSliceType
 		case TagInteger:
-			switch v.Kind() {
-			case reflect.Int, reflect.Int32, reflect.Int64:
-			default:
-				err = StructuralError{fmt.Sprintf("ASN.1 integer value cannot be marshaled into %v", v.Type())}
-			}
+			k := v.Kind()
+			ok = k == reflect.Int || k == reflect.Int32 || k == reflect.Int64
 		case TagNull:
-			if v.Type() != nullType {
-				err = StructuralError{fmt.Sprintf("ASN.1 null value cannot be marshaled into %v", v.Type())}
-			}
-		default:
-			err = SyntaxError{fmt.Sprintf("ASN.1 tag not supported: %d", class)}
+			ok = v.Type() == nullType
 		}
-	default:
-		err = SyntaxError{fmt.Sprintf("ASN.1 class not supported: %d", class)}
 	}
+
+	if !ok {
+		err = StructuralError{
+			fmt.Sprintf("tag mismatch (class = %#x, tag = %#x, type = %v)",
+				class, tag, v.Type())}
+	}
+
 	return
 }
 
