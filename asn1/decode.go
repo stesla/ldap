@@ -160,6 +160,7 @@ var (
 	boolType      = reflect.TypeOf(true)
 	byteSliceType = reflect.TypeOf([]byte{})
 	intType       = reflect.TypeOf(int(0))
+	int32Type     = reflect.TypeOf(int32(0))
 	int64Type     = reflect.TypeOf(int64(0))
 	nullType      = reflect.TypeOf(Null{})
 	rawValueType  = reflect.TypeOf(RawValue{})
@@ -201,6 +202,10 @@ func decodeValue(raw RawValue, v reflect.Value) (out interface{}, err error) {
 		out, err = decodeByteSlice(raw)
 	case int64Type:
 		out, err = decodeInteger(raw, v)
+	case int32Type:
+		var i int64
+		i, err = decodeInteger(raw, v)
+		out = int32(i)
 	case intType:
 		var i int64
 		i, err = decodeInteger(raw, v)
