@@ -29,18 +29,18 @@ func runDecoderTests(t *testing.T, tests []decoderTest, decode decodeFn) {
 
 type tlvType struct {
 	class, tag int
-	isCompound bool
+	isConstructed bool
 }
 
 func TestDecodeType(t *testing.T) {
 	fn := func(in interface{}) (interface{}, error) {
 		r := bytes.NewReader(in.([]byte))
 		dec := NewDecoder(r)
-		class, tag, isCompound, err := dec.decodeType()
+		class, tag, isConstructed, err := dec.decodeType()
 		if err != nil {
 			return nil, err
 		}
-		return tlvType{class, tag, isCompound}, nil
+		return tlvType{class, tag, isConstructed}, nil
 	}
 	tests := []decoderTest{
 		{[]byte{}, false, tlvType{}},
@@ -171,26 +171,26 @@ func TestDecodeInt(t *testing.T) {
 
 type checkTagTest struct {
 	class, tag int
-	primitive bool
+	primitive  bool
 	val        interface{}
 	ok         bool
 }
 
 func TestCheckTag(t *testing.T) {
 	tests := []checkTagTest{
-		{ClassUniversal, TagNull, true, Null{}, true},
-		{ClassUniversal, TagBoolean, true, true, true},
-		{ClassUniversal, TagInteger, true, int(0), true},
-		{ClassUniversal, TagInteger, true, int32(0), true},
-		{ClassUniversal, TagInteger, true, int64(0), true},
-		{ClassUniversal, TagOctetString, true, []byte{}, true},
-		{ClassApplication, TagNull, true, 0, false},
-		{ClassContextSpecific, TagNull, true, 0, false},
-		{ClassPrivate, TagNull, true, 0, false},
-		{ClassUniversal, TagNull, false, 0, false},
-		{ClassUniversal, TagBoolean, false, 0, false},
-		{ClassUniversal, TagInteger, false, 0, false},
-		{ClassUniversal, TagOctetString, false, 0, false}, // TODO
+		{ClassUniversal, TagNull, false, Null{}, true},
+		{ClassUniversal, TagBoolean, false, true, true},
+		{ClassUniversal, TagInteger, false, int(0), true},
+		{ClassUniversal, TagInteger, false, int32(0), true},
+		{ClassUniversal, TagInteger, false, int64(0), true},
+		{ClassUniversal, TagOctetString, false, []byte{}, true},
+		{ClassApplication, TagNull, false, 0, false},
+		{ClassContextSpecific, TagNull, false, 0, false},
+		{ClassPrivate, TagNull, false, 0, false},
+		{ClassUniversal, TagNull, true, 0, false},
+		{ClassUniversal, TagBoolean, true, 0, false},
+		{ClassUniversal, TagInteger, true, 0, false},
+		{ClassUniversal, TagOctetString, true, 0, false}, // TODO
 	}
 	for i, test := range tests {
 		err := checkTag(test.class, test.tag, test.primitive, reflect.ValueOf(test.val))

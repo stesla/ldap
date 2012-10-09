@@ -31,7 +31,7 @@ func (dec *Decoder) Decode(out interface{}) (err error) {
 		return
 	}
 
-	err = checkTag(raw.Class, raw.Tag, !raw.IsConstructed, v)
+	err = checkTag(raw.Class, raw.Tag, raw.Constructed, v)
 	if err != nil {
 		return
 	}
@@ -44,7 +44,7 @@ func (dec *Decoder) Decode(out interface{}) (err error) {
 }
 
 func (dec *Decoder) decodeRawValue() (out RawValue, err error) {
-	out.Class, out.Tag, out.IsConstructed, err = dec.decodeType()
+	out.Class, out.Tag, out.Constructed, err = dec.decodeType()
 	if err != nil {
 		return
 	}
@@ -87,14 +87,14 @@ func (dec *Decoder) decodeRawValue() (out RawValue, err error) {
 	return
 }
 
-func (dec *Decoder) decodeType() (class, tag int, isCompound bool, err error) {
+func (dec *Decoder) decodeType() (class, tag int, constructed bool, err error) {
 	_, err = dec.r.Read(dec.buf[0:1])
 	if err != nil {
 		return
 	}
 
 	class = int(dec.buf[0] >> 6)
-	isCompound = dec.buf[0]&0x20 == 0x20
+	constructed = dec.buf[0]&0x20 == 0x20
 
 	if c := dec.buf[0] & 0x1f; c < 0x1f {
 		tag = int(c)
@@ -161,29 +161,29 @@ var (
 	rawValueType  = reflect.TypeOf(RawValue{})
 )
 
-func checkTag(class, tag int, primitive bool, v reflect.Value) (err error) {
+func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 	var ok bool
 
 	switch class {
 	case ClassUniversal:
 		switch tag {
 		case TagBoolean:
-			ok = primitive && v.Kind() == reflect.Bool
+			ok = !constructed && v.Kind() == reflect.Bool
 		case TagOctetString:
 			// TODO: ASN.1 supports constructed octet strings
-			ok = primitive && v.Type() == byteSliceType
+			ok = !constructed && v.Type() == byteSliceType
 		case TagInteger:
 			k := v.Kind()
-			ok = primitive && (k == reflect.Int || k == reflect.Int32 || k == reflect.Int64)
+			ok = !constructed && (k == reflect.Int || k == reflect.Int32 || k == reflect.Int64)
 		case TagNull:
-			ok = primitive && v.Type() == nullType
+			ok = !constructed && v.Type() == nullType
 		}
 	}
 
 	if !ok {
 		err = StructuralError{
-			fmt.Sprintf("tag mismatch (class = %#x, tag = %#x, primitive = %t, type = %v)",
-				class, tag, v.Type())}
+			fmt.Sprintf("tag mismatch (class = %#x, tag = %#x, constructed = %t, type = %v)",
+				class, tag, constructed, v.Type())}
 	}
 
 	return
