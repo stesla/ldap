@@ -79,24 +79,24 @@ func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{r}
 }
 
-var (
-	boolType     = reflect.TypeOf(true)
-	byteSliceType = reflect.TypeOf([]byte{})
-	enumeratedType = reflect.TypeOf(Enumerated(0))
-	intType = reflect.TypeOf(int(0))
-	int64Type = reflect.TypeOf(int64(0))
-	nullType = reflect.TypeOf(Null{})
-	rawValueType = reflect.TypeOf(RawValue{})
-)
-
 func (dec *Decoder) Decode(out interface{}) (err error) {
+	v := reflect.ValueOf(out).Elem()
 	raw, err := dec.decodeRawValue()
 	if err != nil {
 		return
 	}
 
-	v := reflect.ValueOf(out).Elem()
-	result, err := decodeValue(raw, v.Type())
+	if v.Type() == rawValueType {
+		v.Set(reflect.ValueOf(raw))
+		return
+	}
+
+	err = checkTag(raw.Class, raw.Tag, v)
+	if err != nil {
+		return
+	}
+
+	result, err := decodeValue(raw, v)
 	if err == nil {
 		v.Set(reflect.ValueOf(result))
 	}
@@ -149,16 +149,52 @@ func (dec *Decoder) decodeRawValue() (out RawValue, err error) {
 	return
 }
 
-func decodeValue(raw RawValue, typ reflect.Type) (out interface{}, err error) {
-	switch typ {
-	case rawValueType:
-		out = raw
+var (
+	boolType     = reflect.TypeOf(true)
+	byteSliceType = reflect.TypeOf([]byte{})
+	intType = reflect.TypeOf(int(0))
+	int64Type = reflect.TypeOf(int64(0))
+	nullType = reflect.TypeOf(Null{})
+	rawValueType = reflect.TypeOf(RawValue{})
+)
+
+func checkTag(class, tag int, v reflect.Value) (err error) {
+	switch class {
+	case ClassUniversal:
+		switch tag {
+		case TagBoolean:
+			if v.Kind() != reflect.Bool {
+				err = StructuralError{fmt.Sprintf("ASN.1 boolean value cannot be marshaled into %v", v.Type())}
+			}
+		case TagOctetString:
+			if v.Type() != byteSliceType {
+				err = StructuralError{fmt.Sprintf("ASN.1 octet string value cannot be marshaled into %v", v.Type())}
+			}
+		case TagInteger:
+			switch v.Kind() {
+			case reflect.Int, reflect.Int32, reflect.Int64:
+			default:
+				err = StructuralError{fmt.Sprintf("ASN.1 integer value cannot be marshaled into %v", v.Type())}
+			}
+		case TagNull:
+			if v.Type() != nullType {
+				err = StructuralError{fmt.Sprintf("ASN.1 null value cannot be marshaled into %v", v.Type())}
+			}
+		default:
+			err = SyntaxError{fmt.Sprintf("ASN.1 tag not supported: %d", class)}
+		}
+	default:
+		err = SyntaxError{fmt.Sprintf("ASN.1 class not supported: %d", class)}
+	}
+	return
+}
+
+func decodeValue(raw RawValue, v reflect.Value) (out interface{}, err error) {
+	switch v.Type() {
 	case boolType:
 		out, err = decodeBool(raw)
 	case byteSliceType:
 		out, err = decodeByteSlice(raw)
-	case enumeratedType:
-		out, err = decodeEnumerated(raw)
 	case intType:
 		out, err = decodeInt(raw)
 	case int64Type:
@@ -166,15 +202,13 @@ func decodeValue(raw RawValue, typ reflect.Type) (out interface{}, err error) {
 	case nullType:
 		out, err = decodeNull(raw)
 	default:
-		err = StructuralError{fmt.Sprintf("Unsupported Type: %v", typ)}
+		err = StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
 	}
 	return
 }
 
 func decodeBool(raw RawValue) (out interface{}, err error) {
 	switch {
-	case raw.Tag != TagBoolean && raw.Class == ClassUniversal:
-		err = tagMismatch(raw)
 	case raw.IsConstructed:
 		err = SyntaxError{"booleans must be primitive"}
 	case len(raw.Bytes) != 1:
@@ -187,8 +221,6 @@ func decodeBool(raw RawValue) (out interface{}, err error) {
 
 func decodeByteSlice(raw RawValue) (out interface{}, err error) {
 	switch {
-	case raw.Tag != TagOctetString && raw.Class == ClassUniversal:
-		err = tagMismatch(raw)
 	case raw.IsConstructed:
 		err = SyntaxError{"constructed values are not supported"}
 	default:
@@ -199,14 +231,8 @@ func decodeByteSlice(raw RawValue) (out interface{}, err error) {
 	return
 }
 
-func tagMismatch(raw RawValue) error {
-	return StructuralError{fmt.Sprintf("tag mismatch (class = %d, tag = %d)", raw.Class, raw.Tag)}
-}
-
 func decodeNull(raw RawValue) (out interface{}, err error) {
 	switch {
-	case raw.Tag != TagNull && raw.Class == ClassUniversal:
-		err = tagMismatch(raw)
 	case raw.IsConstructed:
 		err = SyntaxError{"null must be primitive"}
 	case len(raw.Bytes) != 0:
@@ -219,8 +245,6 @@ func decodeNull(raw RawValue) (out interface{}, err error) {
 
 func decodeInt64(raw RawValue) (out interface{}, err error) {
 	switch {
-	case raw.Tag != TagInteger && raw.Class == ClassUniversal:
-		err = tagMismatch(raw)
 	case raw.IsConstructed:
 		err = SyntaxError{"integer must be primitive"}
 	case len(raw.Bytes) == 0:
@@ -245,28 +269,6 @@ func decodeInt(raw RawValue) (out interface{}, err error) {
 		out = i
 	} else {
 		err = StructuralError{"integer overflow"}
-	}
-	return
-}
-
-func decodeEnumerated(raw RawValue) (out interface{}, err error) {
-	switch {
-	case raw.Tag != TagEnumerated && raw.Class == ClassUniversal:
-		err = tagMismatch(raw)
-	case raw.IsConstructed:
-		err = SyntaxError{"enumerated must be primitive"}
-	case len(raw.Bytes) == 0:
-		err = SyntaxError{"enumerated must have at least one byte of content"}
-	default:
-		var i int64
-		for _, b := range raw.Bytes {
-			i = i<<8 + int64(b)
-		}
-		if e := Enumerated(i); i == int64(e) {
-			out = e
-		} else {
-			err = StructuralError{"integer overflow"}
-		}
 	}
 	return
 }
