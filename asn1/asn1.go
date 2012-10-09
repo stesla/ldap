@@ -57,6 +57,6 @@ type RawValue struct {
 	Bytes         []byte
 }
 
-type Null struct {}
+type Null struct{}
 
 type Enumerated int

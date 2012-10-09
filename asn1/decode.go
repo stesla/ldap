@@ -153,12 +153,12 @@ func (dec *Decoder) decodeLength() (length int, isIndefinite bool, err error) {
 }
 
 var (
-	boolType     = reflect.TypeOf(true)
+	boolType      = reflect.TypeOf(true)
 	byteSliceType = reflect.TypeOf([]byte{})
-	intType = reflect.TypeOf(int(0))
-	int64Type = reflect.TypeOf(int64(0))
-	nullType = reflect.TypeOf(Null{})
-	rawValueType = reflect.TypeOf(RawValue{})
+	intType       = reflect.TypeOf(int(0))
+	int64Type     = reflect.TypeOf(int64(0))
+	nullType      = reflect.TypeOf(Null{})
+	rawValueType  = reflect.TypeOf(RawValue{})
 )
 
 func checkTag(class, tag int, v reflect.Value) (err error) {

@@ -175,8 +175,8 @@ func TestDecodeInt(t *testing.T) {
 
 type checkTagTest struct {
 	class, tag int
-	val interface{}
-	ok bool
+	val        interface{}
+	ok         bool
 }
 
 func TestCheckTag(t *testing.T) {
