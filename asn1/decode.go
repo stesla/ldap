@@ -199,10 +199,12 @@ func decodeValue(raw RawValue, v reflect.Value) (out interface{}, err error) {
 		out, err = decodeBool(raw)
 	case byteSliceType:
 		out, err = decodeByteSlice(raw)
-	case intType:
-		out, err = decodeInt(raw)
 	case int64Type:
-		out, err = decodeInt64(raw)
+		out, err = decodeInteger(raw, v)
+	case intType:
+		var i int64
+		i, err = decodeInteger(raw, v)
+		out = int(i)
 	case nullType:
 		out, err = decodeNull(raw)
 	default:
@@ -241,30 +243,19 @@ func decodeNull(raw RawValue) (out interface{}, err error) {
 	return
 }
 
-func decodeInt64(raw RawValue) (out interface{}, err error) {
-	switch {
-	case len(raw.Bytes) == 0:
-		err = SyntaxError{"integer must have at least one byte of content"}
-	default:
-		var i int64
-		for _, b := range raw.Bytes {
-			i = i<<8 + int64(b)
-		}
-		out = i
+func decodeInteger(raw RawValue, v reflect.Value) (int64, error) {
+	if len(raw.Bytes) == 0 {
+		return 0, SyntaxError{"integer must have at least one byte of content"}
 	}
-	return
-}
 
-func decodeInt(raw RawValue) (out interface{}, err error) {
-	ret, err := decodeInt64(raw)
-	if err != nil {
-		return
+	var i int64
+	for _, b := range raw.Bytes {
+		i = i<<8 + int64(b)
 	}
-	ret64 := ret.(int64)
-	if i := int(ret64); ret64 == int64(i) {
-		out = i
-	} else {
-		err = StructuralError{"integer overflow"}
+
+	if v.OverflowInt(i) {
+		return 0, StructuralError{"integer overflow"}
 	}
-	return
+
+	return i, nil
 }
