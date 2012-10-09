@@ -163,7 +163,7 @@ func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 		case TagOctetString:
 			// TODO: ASN.1 supports constructed octet strings
 			ok = !constructed && v.Type() == byteSliceType
-		case TagInteger:
+		case TagInteger, TagEnumerated:
 			ok = !constructed && reflect.Int <= v.Kind() && v.Kind() <= reflect.Int64
 		case TagNull:
 			ok = !constructed && v.Type() == nullType

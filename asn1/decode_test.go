@@ -148,6 +148,7 @@ func TestDecodeInt64(t *testing.T) {
 		{[]byte{0x02, 0x02, 0x12, 0x34}, true, int64(0x1234)},
 		{[]byte{0x02, 0x05, 0x01, 0x00, 0x00, 0x00, 0x01}, true, int64(0x100000001)},
 		{[]byte{0x22, 0x01, 0x00}, false, nil},
+		{[]byte{0x22, 0x00}, false, nil},
 	}
 	var out int64
 	runDecoderTests(t, tests, withValue(&out))
@@ -160,6 +161,7 @@ func TestDecodeInt32(t *testing.T) {
 		{[]byte{0x02, 0x02, 0x12, 0x34}, true, int32(0x1234)},
 		{[]byte{0x02, 0x05, 0x01, 0x00, 0x00, 0x00, 0x01}, false, nil},
 		{[]byte{0x22, 0x01, 0x00}, false, nil},
+		{[]byte{0x22, 0x00}, false, nil},
 	}
 	var out int32
 	runDecoderTests(t, tests, withValue(&out))
@@ -172,6 +174,7 @@ func TestDecodeInt16(t *testing.T) {
 		{[]byte{0x02, 0x02, 0x12, 0x34}, true, int16(0x1234)},
 		{[]byte{0x02, 0x03, 0x01, 0x00, 0x01}, false, nil},
 		{[]byte{0x22, 0x01, 0x00}, false, nil},
+		{[]byte{0x22, 0x00}, false, nil},
 	}
 	var out int16
 	runDecoderTests(t, tests, withValue(&out))
@@ -183,6 +186,7 @@ func TestDecodeInt8(t *testing.T) {
 		{[]byte{0x02, 0x01, 0x2a}, true, int8(42)},
 		{[]byte{0x02, 0x02, 0x01, 0x01}, false, nil},
 		{[]byte{0x22, 0x01, 0x00}, false, nil},
+		{[]byte{0x22, 0x00}, false, nil},
 	}
 	var out int8
 	runDecoderTests(t, tests, withValue(&out))
@@ -195,8 +199,21 @@ func TestDecodeInt(t *testing.T) {
 		{[]byte{0x02, 0x02, 0x12, 0x34}, true, int(0x1234)},
 		{[]byte{0x02, 0x05, 0x01, 0x00, 0x00, 0x00, 0x01}, false, nil},
 		{[]byte{0x22, 0x01, 0x00}, false, nil},
+		{[]byte{0x22, 0x00}, false, nil},
 	}
 	var out int
+	runDecoderTests(t, tests, withValue(&out))
+}
+
+type MyEnum int8
+func TestDecodeEnumerated(t *testing.T) {
+	tests := []decoderTest{
+		{[]byte{0x0a, 0x01, 0x01}, true, MyEnum(1)},
+		{[]byte{0x0a, 0x02, 0x01, 0x01}, false, nil},
+		{[]byte{0x2a, 0x01, 0x00}, false, nil},
+		{[]byte{0x2a, 0x00}, false, nil},
+	}
+	var out MyEnum
 	runDecoderTests(t, tests, withValue(&out))
 }
 
