@@ -152,16 +152,6 @@ func (dec *Decoder) decodeLength() (length int, isIndefinite bool, err error) {
 	return
 }
 
-var (
-	boolType      = reflect.TypeOf(true)
-	byteSliceType = reflect.TypeOf([]byte{})
-	intType       = reflect.TypeOf(int(0))
-	int32Type     = reflect.TypeOf(int32(0))
-	int64Type     = reflect.TypeOf(int64(0))
-	nullType      = reflect.TypeOf(Null{})
-	rawValueType  = reflect.TypeOf(RawValue{})
-)
-
 func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 	var ok bool
 
@@ -190,20 +180,28 @@ func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 	return
 }
 
+var (
+	byteSliceType = reflect.TypeOf([]byte{})
+	nullType      = reflect.TypeOf(Null{})
+	rawValueType  = reflect.TypeOf(RawValue{})
+)
+
 func decodeValue(raw RawValue, v reflect.Value) (err error) {
 	switch v.Type() {
-	case boolType:
-		err = decodeBool(raw, v)
 	case byteSliceType:
-		err = decodeByteSlice(raw, v)
-	case int64Type, int32Type, intType:
-		err = decodeInteger(raw, v)
+		return decodeByteSlice(raw, v)
 	case nullType:
-		err = decodeNull(raw, v)
-	default:
-		err = StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
+		return decodeNull(raw, v)
 	}
-	return
+
+	switch v.Kind() {
+	case reflect.Bool:
+		return decodeBool(raw, v)
+	case reflect.Int64, reflect.Int32, reflect.Int:
+		return decodeInteger(raw, v)
+	}
+
+	return StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
 }
 
 func decodeBool(raw RawValue, v reflect.Value) error {
