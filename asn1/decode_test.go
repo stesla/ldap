@@ -113,7 +113,6 @@ func TestDecodeBool(t *testing.T) {
 		{RawValue{ClassUniversal, TagBoolean, false, []byte{0xff}}, true, true},
 		{RawValue{ClassUniversal, TagBoolean, false, []byte{}}, false, nil},
 		{RawValue{ClassUniversal, TagBoolean, false, []byte{0x00, 0x01}}, false, nil},
-		{RawValue{ClassUniversal, TagBoolean, true, []byte{0x00}}, false, nil},
 	}
 	runDecoderTests(t, tests, fn)
 }
@@ -126,8 +125,6 @@ func TestDecodeByteSlice(t *testing.T) {
 	tests := []decoderTest{
 		{RawValue{ClassUniversal, TagOctetString, false, []byte{}}, true, []byte{}},
 		{RawValue{ClassUniversal, TagOctetString, false, []byte("foo")}, true, []byte("foo")},
-		//TODO: constructed octet strings
-		{RawValue{ClassUniversal, TagOctetString, true, []byte{}}, false, nil},
 	}
 	runDecoderTests(t, tests, fn)
 }
@@ -140,7 +137,6 @@ func TestDecodeNull(t *testing.T) {
 	tests := []decoderTest{
 		{RawValue{ClassUniversal, TagNull, false, nil}, true, Null{}},
 		{RawValue{ClassUniversal, TagNull, false, []byte{0x01}}, false, Null{}},
-		{RawValue{ClassUniversal, TagNull, true, nil}, false, nil},
 	}
 	runDecoderTests(t, tests, fn)
 }
@@ -175,24 +171,29 @@ func TestDecodeInt(t *testing.T) {
 
 type checkTagTest struct {
 	class, tag int
+	primitive bool
 	val        interface{}
 	ok         bool
 }
 
 func TestCheckTag(t *testing.T) {
 	tests := []checkTagTest{
-		{ClassUniversal, TagNull, Null{}, true},
-		{ClassUniversal, TagBoolean, true, true},
-		{ClassUniversal, TagInteger, int(0), true},
-		{ClassUniversal, TagInteger, int32(0), true},
-		{ClassUniversal, TagInteger, int64(0), true},
-		{ClassUniversal, TagOctetString, []byte{}, true},
-		{ClassApplication, TagNull, Null{}, false},
-		{ClassContextSpecific, TagNull, Null{}, false},
-		{ClassPrivate, TagNull, Null{}, false},
+		{ClassUniversal, TagNull, true, Null{}, true},
+		{ClassUniversal, TagBoolean, true, true, true},
+		{ClassUniversal, TagInteger, true, int(0), true},
+		{ClassUniversal, TagInteger, true, int32(0), true},
+		{ClassUniversal, TagInteger, true, int64(0), true},
+		{ClassUniversal, TagOctetString, true, []byte{}, true},
+		{ClassApplication, TagNull, true, 0, false},
+		{ClassContextSpecific, TagNull, true, 0, false},
+		{ClassPrivate, TagNull, true, 0, false},
+		{ClassUniversal, TagNull, false, 0, false},
+		{ClassUniversal, TagBoolean, false, 0, false},
+		{ClassUniversal, TagInteger, false, 0, false},
+		{ClassUniversal, TagOctetString, false, 0, false}, // TODO
 	}
 	for i, test := range tests {
-		err := checkTag(test.class, test.tag, reflect.ValueOf(test.val))
+		err := checkTag(test.class, test.tag, test.primitive, reflect.ValueOf(test.val))
 		if (err == nil) != test.ok {
 			t.Errorf("#%d: Incorrect error result (passed? %v, expected %v): %s",
 				i, err == nil, test.ok, err)

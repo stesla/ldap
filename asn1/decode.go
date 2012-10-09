@@ -31,7 +31,7 @@ func (dec *Decoder) Decode(out interface{}) (err error) {
 		return
 	}
 
-	err = checkTag(raw.Class, raw.Tag, v)
+	err = checkTag(raw.Class, raw.Tag, !raw.IsConstructed, v)
 	if err != nil {
 		return
 	}
@@ -161,27 +161,28 @@ var (
 	rawValueType  = reflect.TypeOf(RawValue{})
 )
 
-func checkTag(class, tag int, v reflect.Value) (err error) {
+func checkTag(class, tag int, primitive bool, v reflect.Value) (err error) {
 	var ok bool
 
 	switch class {
 	case ClassUniversal:
 		switch tag {
 		case TagBoolean:
-			ok = v.Kind() == reflect.Bool
+			ok = primitive && v.Kind() == reflect.Bool
 		case TagOctetString:
-			ok = v.Type() == byteSliceType
+			// TODO: ASN.1 supports constructed octet strings
+			ok = primitive && v.Type() == byteSliceType
 		case TagInteger:
 			k := v.Kind()
-			ok = k == reflect.Int || k == reflect.Int32 || k == reflect.Int64
+			ok = primitive && (k == reflect.Int || k == reflect.Int32 || k == reflect.Int64)
 		case TagNull:
-			ok = v.Type() == nullType
+			ok = primitive && v.Type() == nullType
 		}
 	}
 
 	if !ok {
 		err = StructuralError{
-			fmt.Sprintf("tag mismatch (class = %#x, tag = %#x, type = %v)",
+			fmt.Sprintf("tag mismatch (class = %#x, tag = %#x, primitive = %t, type = %v)",
 				class, tag, v.Type())}
 	}
 
@@ -208,8 +209,6 @@ func decodeValue(raw RawValue, v reflect.Value) (out interface{}, err error) {
 
 func decodeBool(raw RawValue) (out interface{}, err error) {
 	switch {
-	case raw.IsConstructed:
-		err = SyntaxError{"booleans must be primitive"}
 	case len(raw.Bytes) != 1:
 		err = SyntaxError{fmt.Sprintf("booleans must be only one byte (len = %d)", len(raw.Bytes))}
 	default:
@@ -220,8 +219,6 @@ func decodeBool(raw RawValue) (out interface{}, err error) {
 
 func decodeByteSlice(raw RawValue) (out interface{}, err error) {
 	switch {
-	case raw.IsConstructed:
-		err = SyntaxError{"constructed values are not supported"}
 	default:
 		b := make([]byte, len(raw.Bytes))
 		copy(b, raw.Bytes)
@@ -232,8 +229,6 @@ func decodeByteSlice(raw RawValue) (out interface{}, err error) {
 
 func decodeNull(raw RawValue) (out interface{}, err error) {
 	switch {
-	case raw.IsConstructed:
-		err = SyntaxError{"null must be primitive"}
 	case len(raw.Bytes) != 0:
 		err = SyntaxError{fmt.Sprintf("null must not have content (len = %d)", len(raw.Bytes))}
 	default:
@@ -244,8 +239,6 @@ func decodeNull(raw RawValue) (out interface{}, err error) {
 
 func decodeInt64(raw RawValue) (out interface{}, err error) {
 	switch {
-	case raw.IsConstructed:
-		err = SyntaxError{"integer must be primitive"}
 	case len(raw.Bytes) == 0:
 		err = SyntaxError{"integer must have at least one byte of content"}
 	default:
