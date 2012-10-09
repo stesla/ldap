@@ -32,7 +32,7 @@ type tlvType struct {
 	isConstructed bool
 }
 
-func sliceDecoderFn(fn func(*Decoder) (interface{}, error)) decodeFn {
+func withDecoder(fn func(*Decoder) (interface{}, error)) decodeFn {
 	return func(in interface{}) (interface{}, error) {
 		r := bytes.NewReader(in.([]byte))
 		dec := NewDecoder(r)
@@ -41,7 +41,7 @@ func sliceDecoderFn(fn func(*Decoder) (interface{}, error)) decodeFn {
 }
 
 func TestDecodeType(t *testing.T) {
-	fn := sliceDecoderFn(func (dec *Decoder) (interface{}, error) {
+	fn := withDecoder(func (dec *Decoder) (interface{}, error) {
 		class, tag, isConstructed, err := dec.decodeType()
 		if err != nil {
 			return nil, err
@@ -70,7 +70,7 @@ type tlvLength struct {
 }
 
 func TestDecodeLength(t *testing.T) {
-	fn := sliceDecoderFn(func (dec *Decoder) (interface{}, error) {
+	fn := withDecoder(func (dec *Decoder) (interface{}, error) {
 		length, isIndefinite, err := dec.decodeLength()
 		if err != nil {
 			return nil, err
@@ -88,8 +88,8 @@ func TestDecodeLength(t *testing.T) {
 	runDecoderTests(t, tests, fn)
 }
 
-func decodeValueFn(out interface{}) decodeFn {
-	return sliceDecoderFn(func (dec *Decoder) (interface{}, error) {
+func withValue(out interface{}) decodeFn {
+	return withDecoder(func (dec *Decoder) (interface{}, error) {
 		err := dec.Decode(out)
 		return reflect.ValueOf(out).Elem().Interface(), err
 	})
@@ -104,7 +104,7 @@ func TestDecodeRawValue(t *testing.T) {
 			RawValue{0, 4, false, []byte("bar")}},
 	}
 	var out RawValue
-	runDecoderTests(t, tests, decodeValueFn(&out))
+	runDecoderTests(t, tests, withValue(&out))
 }
 
 func TestDecodeBool(t *testing.T) {
@@ -114,27 +114,31 @@ func TestDecodeBool(t *testing.T) {
 		{[]byte{0x01, 0x01, 0xff}, true, true},
 		{[]byte{0x01, 0x00}, false, nil},
 		{[]byte{0x01, 0x02, 0x00, 0x01}, false, nil},
+		{[]byte{0x21, 0x01, 0x00}, false, nil},
 	}
 	var out bool
-	runDecoderTests(t, tests, decodeValueFn(&out))
+	runDecoderTests(t, tests, withValue(&out))
 }
 
 func TestDecodeByteSlice(t *testing.T) {
 	tests := []decoderTest{
 		{[]byte{0x04, 0x00}, true, []byte{}},
 		{[]byte{0x04, 0x03, 'f', 'o', 'o'}, true, []byte("foo")},
+		// TODO: Support constructed octet strings
+		{[]byte{0x24, 0x01, 0x00}, false, nil},
 	}
 	var out []byte
-	runDecoderTests(t, tests, decodeValueFn(&out))
+	runDecoderTests(t, tests, withValue(&out))
 }
 
 func TestDecodeNull(t *testing.T) {
 	tests := []decoderTest{
 		{[]byte{0x05, 0x00}, true, Null{}},
 		{[]byte{0x05, 0x01, 0x01}, false, nil},
+		{[]byte{0x25, 0x00}, false, nil},
 	}
 	var out Null
-	runDecoderTests(t, tests, decodeValueFn(&out))
+	runDecoderTests(t, tests, withValue(&out))
 }
 
 func TestDecodeInt64(t *testing.T) {
@@ -143,9 +147,10 @@ func TestDecodeInt64(t *testing.T) {
 		{[]byte{0x02, 0x01, 0x2a}, true, int64(42)},
 		{[]byte{0x02, 0x02, 0x12, 0x34}, true, int64(0x1234)},
 		{[]byte{0x02, 0x05, 0x01, 0x00, 0x00, 0x00, 0x01}, true, int64(0x100000001)},
+		{[]byte{0x22, 0x01, 0x00}, false, nil},
 	}
 	var out int64
-	runDecoderTests(t, tests, decodeValueFn(&out))
+	runDecoderTests(t, tests, withValue(&out))
 }
 
 func TestDecodeInt(t *testing.T) {
@@ -154,39 +159,19 @@ func TestDecodeInt(t *testing.T) {
 		{[]byte{0x02, 0x01, 0x2a}, true, int(42)},
 		{[]byte{0x02, 0x02, 0x12, 0x34}, true, int(0x1234)},
 		{[]byte{0x02, 0x05, 0x01, 0x00, 0x00, 0x00, 0x01}, false, nil},
+		{[]byte{0x22, 0x01, 0x00}, false, nil},
 	}
 	var out int
-	runDecoderTests(t, tests, decodeValueFn(&out))
+	runDecoderTests(t, tests, withValue(&out))
 }
 
-type checkTagTest struct {
-	class, tag int
-	primitive  bool
-	val        interface{}
-	ok         bool
-}
-
-func TestCheckTag(t *testing.T) {
-	tests := []checkTagTest{
-		{ClassUniversal, TagNull, false, Null{}, true},
-		{ClassUniversal, TagBoolean, false, true, true},
-		{ClassUniversal, TagInteger, false, int(0), true},
-		{ClassUniversal, TagInteger, false, int32(0), true},
-		{ClassUniversal, TagInteger, false, int64(0), true},
-		{ClassUniversal, TagOctetString, false, []byte{}, true},
-		{ClassApplication, TagNull, false, 0, false},
-		{ClassContextSpecific, TagNull, false, 0, false},
-		{ClassPrivate, TagNull, false, 0, false},
-		{ClassUniversal, TagNull, true, 0, false},
-		{ClassUniversal, TagBoolean, true, 0, false},
-		{ClassUniversal, TagInteger, true, 0, false},
-		{ClassUniversal, TagOctetString, true, 0, false}, // TODO
+func TestOtherErrors(t *testing.T) {
+	tests := []decoderTest{
+		// TODO: support implicit and explicit tagging
+		{[]byte{0x45, 0x00}, false, nil},
+		{[]byte{0x85, 0x00}, false, nil},
+		{[]byte{0xc5, 0x00}, false, nil},
 	}
-	for i, test := range tests {
-		err := checkTag(test.class, test.tag, test.primitive, reflect.ValueOf(test.val))
-		if (err == nil) != test.ok {
-			t.Errorf("#%d: Incorrect error result (passed? %v, expected %v): %s",
-				i, err == nil, test.ok, err)
-		}
-	}
+	var out Null
+	runDecoderTests(t, tests, withValue(&out))
 }
