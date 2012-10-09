@@ -40,11 +40,7 @@ func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 		return
 	}
 
-	result, err := decodeValue(raw, v)
-	if err == nil {
-		v.Set(reflect.ValueOf(result))
-	}
-	return
+	return decodeValue(raw, v)
 }
 
 func (dec *Decoder) decodeRawValue() (out RawValue, err error) {
@@ -194,63 +190,45 @@ func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 	return
 }
 
-func decodeValue(raw RawValue, v reflect.Value) (out interface{}, err error) {
+func decodeValue(raw RawValue, v reflect.Value) (err error) {
 	switch v.Type() {
 	case boolType:
-		out, err = decodeBool(raw)
+		err = decodeBool(raw, v)
 	case byteSliceType:
-		out, err = decodeByteSlice(raw)
-	case int64Type:
-		out, err = decodeInteger(raw, v)
-	case int32Type:
-		var i int64
-		i, err = decodeInteger(raw, v)
-		out = int32(i)
-	case intType:
-		var i int64
-		i, err = decodeInteger(raw, v)
-		out = int(i)
+		err = decodeByteSlice(raw, v)
+	case int64Type, int32Type, intType:
+		err = decodeInteger(raw, v)
 	case nullType:
-		out, err = decodeNull(raw)
+		err = decodeNull(raw, v)
 	default:
 		err = StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
 	}
 	return
 }
 
-func decodeBool(raw RawValue) (out interface{}, err error) {
-	switch {
-	case len(raw.Bytes) != 1:
-		err = SyntaxError{fmt.Sprintf("booleans must be only one byte (len = %d)", len(raw.Bytes))}
-	default:
-		out = raw.Bytes[0] != 0
+func decodeBool(raw RawValue, v reflect.Value) error {
+	if len(raw.Bytes) != 1 {
+		return SyntaxError{fmt.Sprintf("booleans must be only one byte (len = %d)", len(raw.Bytes))}
 	}
+	v.SetBool(raw.Bytes[0] != 0)
+	return nil
+}
+
+func decodeByteSlice(raw RawValue, v reflect.Value) (err error) {
+	v.SetBytes(raw.Bytes)
 	return
 }
 
-func decodeByteSlice(raw RawValue) (out interface{}, err error) {
-	switch {
-	default:
-		b := make([]byte, len(raw.Bytes))
-		copy(b, raw.Bytes)
-		out = b
+func decodeNull(raw RawValue, v reflect.Value) error {
+	if len(raw.Bytes) != 0 {
+		return SyntaxError{fmt.Sprintf("null must not have content (len = %d)", len(raw.Bytes))}
 	}
-	return
+	return nil
 }
 
-func decodeNull(raw RawValue) (out interface{}, err error) {
-	switch {
-	case len(raw.Bytes) != 0:
-		err = SyntaxError{fmt.Sprintf("null must not have content (len = %d)", len(raw.Bytes))}
-	default:
-		out = Null{}
-	}
-	return
-}
-
-func decodeInteger(raw RawValue, v reflect.Value) (int64, error) {
+func decodeInteger(raw RawValue, v reflect.Value) error {
 	if len(raw.Bytes) == 0 {
-		return 0, SyntaxError{"integer must have at least one byte of content"}
+		return SyntaxError{"integer must have at least one byte of content"}
 	}
 
 	var i int64
@@ -259,8 +237,10 @@ func decodeInteger(raw RawValue, v reflect.Value) (int64, error) {
 	}
 
 	if v.OverflowInt(i) {
-		return 0, StructuralError{"integer overflow"}
+		return StructuralError{"integer overflow"}
 	}
 
-	return i, nil
+	v.SetInt(i)
+
+	return nil
 }
