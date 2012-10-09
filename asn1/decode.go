@@ -7,11 +7,16 @@ import (
 )
 
 type Decoder struct {
-	r io.Reader
+	r   io.Reader
+	buf []byte
 }
 
 func NewDecoder(r io.Reader) *Decoder {
-	return &Decoder{r}
+	return &Decoder{
+		r: r,
+		// 10 bytes ought to be long enough for any tag or length
+		buf: make([]byte, 10),
+	}
 }
 
 func (dec *Decoder) Decode(out interface{}) (err error) {
@@ -39,14 +44,12 @@ func (dec *Decoder) Decode(out interface{}) (err error) {
 }
 
 func (dec *Decoder) decodeRawValue() (out RawValue, err error) {
-	buf := make([]byte, 10)
-
-	out.Class, out.Tag, out.IsConstructed, err = decodeType(dec.r, buf)
+	out.Class, out.Tag, out.IsConstructed, err = dec.decodeType()
 	if err != nil {
 		return
 	}
 
-	length, isIndefinite, err := decodeLength(dec.r, buf)
+	length, isIndefinite, err := dec.decodeLength()
 	if err != nil {
 		return
 	}
@@ -84,36 +87,36 @@ func (dec *Decoder) decodeRawValue() (out RawValue, err error) {
 	return
 }
 
-func decodeType(r io.Reader, buf []byte) (class, tag int, isCompound bool, err error) {
-	_, err = r.Read(buf[0:1])
+func (dec *Decoder) decodeType() (class, tag int, isCompound bool, err error) {
+	_, err = dec.r.Read(dec.buf[0:1])
 	if err != nil {
 		return
 	}
 
-	class = int(buf[0] >> 6)
-	isCompound = buf[0]&0x20 == 0x20
+	class = int(dec.buf[0] >> 6)
+	isCompound = dec.buf[0]&0x20 == 0x20
 
-	if c := buf[0] & 0x1f; c < 0x1f {
+	if c := dec.buf[0] & 0x1f; c < 0x1f {
 		tag = int(c)
 	} else {
-		_, err = r.Read(buf[0:1])
+		_, err = dec.r.Read(dec.buf[0:1])
 		if err != nil {
 			return
 		}
 
-		if buf[0]&0x7f == 0 {
+		if dec.buf[0]&0x7f == 0 {
 			err = SyntaxError{"long-form tag"}
 			return
 		}
 
 		for {
-			tag = tag<<7 | int(buf[0]&0x1f)
+			tag = tag<<7 | int(dec.buf[0]&0x1f)
 
-			if buf[0]&0x80 == 0 {
+			if dec.buf[0]&0x80 == 0 {
 				break
 			}
 
-			_, err = r.Read(buf[0:1])
+			_, err = dec.r.Read(dec.buf[0:1])
 			if err != nil {
 				return
 			}
@@ -122,13 +125,13 @@ func decodeType(r io.Reader, buf []byte) (class, tag int, isCompound bool, err e
 	return
 }
 
-func decodeLength(r io.Reader, buf []byte) (length int, isIndefinite bool, err error) {
-	_, err = r.Read(buf[0:1])
+func (dec *Decoder) decodeLength() (length int, isIndefinite bool, err error) {
+	_, err = dec.r.Read(dec.buf[0:1])
 	if err != nil {
 		return
 	}
 
-	if c := buf[0]; c < 0x80 {
+	if c := dec.buf[0]; c < 0x80 {
 		length = int(c)
 	} else if c == 0x80 {
 		isIndefinite = true
@@ -138,11 +141,11 @@ func decodeLength(r io.Reader, buf []byte) (length int, isIndefinite bool, err e
 	} else {
 		var width int
 		n := c & 0x7f
-		width, err = io.ReadFull(r, buf[0:n])
+		width, err = io.ReadFull(dec.r, dec.buf[0:n])
 		if err != nil {
 			return
 		}
-		for _, b := range buf[0:width] {
+		for _, b := range dec.buf[0:width] {
 			length = length<<8 | int(b)
 		}
 	}

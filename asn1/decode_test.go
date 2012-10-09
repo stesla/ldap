@@ -35,8 +35,8 @@ type tlvType struct {
 func TestDecodeType(t *testing.T) {
 	fn := func(in interface{}) (interface{}, error) {
 		r := bytes.NewReader(in.([]byte))
-		buf := make([]byte, 8)
-		class, tag, isCompound, err := decodeType(r, buf)
+		dec := NewDecoder(r)
+		class, tag, isCompound, err := dec.decodeType()
 		if err != nil {
 			return nil, err
 		}
@@ -66,8 +66,8 @@ type tlvLength struct {
 func TestDecodeLength(t *testing.T) {
 	fn := func(in interface{}) (interface{}, error) {
 		r := bytes.NewReader(in.([]byte))
-		buf := make([]byte, 8)
-		length, isIndefinite, err := decodeLength(r, buf)
+		dec := NewDecoder(r)
+		length, isIndefinite, err := dec.decodeLength()
 		if err != nil {
 			return nil, err
 		}
