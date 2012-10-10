@@ -32,13 +32,12 @@ func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 		return
 	}
 
-	b, err := dec.readContent()
-	if err != nil {
-		return
-	}
-
 	if v.Type() == rawValueType {
-		raw := RawValue{class, tag, constructed, b}
+		raw := RawValue{Class:class, Tag:tag, Constructed:constructed}
+		raw.Bytes, err = dec.readContent()
+		if err != nil {
+			return
+		}
 		v.Set(reflect.ValueOf(raw))
 		return
 	}
@@ -48,7 +47,32 @@ func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 		return
 	}
 
-	return decodeValue(b, v)
+	if constructed {
+		return dec.decodeConstructed(class, tag, v)
+	}
+	return dec.decodePrimitive(class, tag, v)
+}
+
+func (dec *Decoder) decodeConstructed(class, tag int, v reflect.Value) (err error) {
+	return StructuralError{"constructed values not yet supported"}
+}
+
+func (dec *Decoder) decodePrimitive(class, tag int, v reflect.Value) (err error) {
+	b, err := dec.readContent()
+	if err != nil {
+		return
+	}
+	switch v.Kind() {
+	case reflect.Slice:
+		if v.Type().Elem().Kind() == reflect.Uint8 {
+			return decodeByteSlice(b, v)
+		}
+	case reflect.Bool:
+		return decodeBool(b, v)
+	case reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8, reflect.Int:
+		return decodeInteger(b, v)
+	}
+	return StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
 }
 
 func (dec *Decoder) decodeType() (class, tag int, constructed bool, err error) {
@@ -176,21 +200,6 @@ func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 	}
 
 	return
-}
-
-func decodeValue(b []byte, v reflect.Value) (err error) {
-	switch v.Kind() {
-	case reflect.Slice:
-		if v.Type().Elem().Kind() == reflect.Uint8 {
-			return decodeByteSlice(b, v)
-		}
-	case reflect.Bool:
-		return decodeBool(b, v)
-	case reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8, reflect.Int:
-		return decodeInteger(b, v)
-	}
-
-	return StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
 }
 
 func decodeBool(b []byte, v reflect.Value) error {
