@@ -32,40 +32,9 @@ func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 		return
 	}
 
-	length, isIndefinite, err := dec.decodeLength()
+	b, err := dec.readContent()
 	if err != nil {
 		return
-	}
-
-	var b []byte
-	if isIndefinite {
-		b = make([]byte, 2)
-		_, err = io.ReadFull(dec.r, b)
-		if err != nil {
-			return
-		}
-		for {
-			if b[len(b)-2] == 0 && b[len(b)-1] == 0 {
-				b = b[:len(b)-2]
-				break
-			}
-			if len(b) == cap(b) {
-				bb := make([]byte, len(b), 2*len(b))
-				copy(bb, b)
-				b = bb
-			}
-			b = b[:len(b)+1]
-			_, err = dec.r.Read(b[len(b)-1:])
-			if err != nil {
-				return
-			}
-		}
-	} else {
-		b = make([]byte, length)
-		_, err = io.ReadFull(dec.r, b)
-		if err != nil {
-			return
-		}
 	}
 
 	if v.Type() == rawValueType {
@@ -115,6 +84,44 @@ func (dec *Decoder) decodeType() (class, tag int, constructed bool, err error) {
 			if err != nil {
 				return
 			}
+		}
+	}
+	return
+}
+
+func (dec *Decoder) readContent() (b []byte, err error) {
+	length, isIndefinite, err := dec.decodeLength()
+	if err != nil {
+		return
+	}
+
+	if isIndefinite {
+		b = make([]byte, 2)
+		_, err = io.ReadFull(dec.r, b)
+		if err != nil {
+			return
+		}
+		for {
+			if b[len(b)-2] == 0 && b[len(b)-1] == 0 {
+				b = b[:len(b)-2]
+				break
+			}
+			if len(b) == cap(b) {
+				bb := make([]byte, len(b), 2*len(b))
+				copy(bb, b)
+				b = bb
+			}
+			b = b[:len(b)+1]
+			_, err = dec.r.Read(b[len(b)-1:])
+			if err != nil {
+				return
+			}
+		}
+	} else {
+		b = make([]byte, length)
+		_, err = io.ReadFull(dec.r, b)
+		if err != nil {
+			return
 		}
 	}
 	return
