@@ -27,26 +27,7 @@ func (dec *Decoder) Decode(out interface{}) error {
 var rawValueType  = reflect.TypeOf(RawValue{})
 
 func (dec *Decoder) decodeField(v reflect.Value) (err error) {
-	raw, err := dec.decodeRawValue()
-	if err != nil {
-		return
-	}
-
-	if v.Type() == rawValueType {
-		v.Set(reflect.ValueOf(raw))
-		return
-	}
-
-	err = checkTag(raw.Class, raw.Tag, raw.Constructed, v)
-	if err != nil {
-		return
-	}
-
-	return decodeValue(raw, v)
-}
-
-func (dec *Decoder) decodeRawValue() (out RawValue, err error) {
-	out.Class, out.Tag, out.Constructed, err = dec.decodeType()
+	class, tag, constructed, err := dec.decodeType()
 	if err != nil {
 		return
 	}
@@ -56,8 +37,9 @@ func (dec *Decoder) decodeRawValue() (out RawValue, err error) {
 		return
 	}
 
+	var b []byte
 	if isIndefinite {
-		b := make([]byte, 2)
+		b = make([]byte, 2)
 		_, err = io.ReadFull(dec.r, b)
 		if err != nil {
 			return
@@ -78,15 +60,26 @@ func (dec *Decoder) decodeRawValue() (out RawValue, err error) {
 				return
 			}
 		}
-		out.Bytes = b
 	} else {
-		out.Bytes = make([]byte, length)
-		_, err = io.ReadFull(dec.r, out.Bytes)
+		b = make([]byte, length)
+		_, err = io.ReadFull(dec.r, b)
 		if err != nil {
 			return
 		}
 	}
-	return
+
+	if v.Type() == rawValueType {
+		raw := RawValue{class, tag, constructed, b}
+		v.Set(reflect.ValueOf(raw))
+		return
+	}
+
+	err = checkTag(class, tag, constructed, v)
+	if err != nil {
+		return
+	}
+
+	return decodeValue(b, v)
 }
 
 func (dec *Decoder) decodeType() (class, tag int, constructed bool, err error) {
@@ -178,41 +171,41 @@ func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 	return
 }
 
-func decodeValue(raw RawValue, v reflect.Value) (err error) {
+func decodeValue(b []byte, v reflect.Value) (err error) {
 	switch v.Kind() {
 	case reflect.Slice:
 		if v.Type().Elem().Kind() == reflect.Uint8 {
-			return decodeByteSlice(raw, v)
+			return decodeByteSlice(b, v)
 		}
 	case reflect.Bool:
-		return decodeBool(raw, v)
+		return decodeBool(b, v)
 	case reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8, reflect.Int:
-		return decodeInteger(raw, v)
+		return decodeInteger(b, v)
 	}
 
 	return StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
 }
 
-func decodeBool(raw RawValue, v reflect.Value) error {
-	if len(raw.Bytes) != 1 {
-		return SyntaxError{fmt.Sprintf("booleans must be only one byte (len = %d)", len(raw.Bytes))}
+func decodeBool(b []byte, v reflect.Value) error {
+	if len(b) != 1 {
+		return SyntaxError{fmt.Sprintf("booleans must be only one byte (len = %d)", len(b))}
 	}
-	v.SetBool(raw.Bytes[0] != 0)
+	v.SetBool(b[0] != 0)
 	return nil
 }
 
-func decodeByteSlice(raw RawValue, v reflect.Value) (err error) {
-	v.SetBytes(raw.Bytes)
+func decodeByteSlice(b []byte, v reflect.Value) (err error) {
+	v.SetBytes(b)
 	return
 }
 
-func decodeInteger(raw RawValue, v reflect.Value) error {
-	if len(raw.Bytes) == 0 {
+func decodeInteger(b []byte, v reflect.Value) error {
+	if len(b) == 0 {
 		return SyntaxError{"integer must have at least one byte of content"}
 	}
 
 	var i int64
-	for _, b := range raw.Bytes {
+	for _, b := range b {
 		i = i<<8 + int64(b)
 	}
 
