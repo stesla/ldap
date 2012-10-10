@@ -68,14 +68,6 @@ func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 }
 
 func (dec *Decoder) decodeConstructed(v reflect.Value) (err error) {
-	switch v.Kind() {
-	case reflect.Slice:
-		return dec.decodeSequenceSlice(v)
-	}
-	return StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
-}
-
-func (dec *Decoder) decodeSequenceSlice(v reflect.Value) (err error) {
 	length, indefinite, err := dec.decodeLength()
 	if err != nil {
 		return
@@ -92,6 +84,16 @@ func (dec *Decoder) decodeSequenceSlice(v reflect.Value) (err error) {
 		dec.r = bytes.NewReader(b)
 	}
 
+	switch v.Kind() {
+	case reflect.Slice:
+		return dec.decodeSequenceSlice(v)
+	case reflect.Struct:
+		return dec.decodeSequenceStruct(v)
+	}
+	return StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
+}
+
+func (dec *Decoder) decodeSequenceSlice(v reflect.Value) (err error) {
 	t := v.Type().Elem()
 	v.Set(reflect.MakeSlice(v.Type(), 0, 0))
 	for ok := true; ok; {
@@ -104,6 +106,18 @@ func (dec *Decoder) decodeSequenceSlice(v reflect.Value) (err error) {
 			return
 		}
 		v.Set(reflect.Append(v, vv))
+	}
+	return
+}
+
+func (dec *Decoder) decodeSequenceStruct(v reflect.Value) (err error) {
+	max := v.NumField()
+	for i := 0; i < max; i++ {
+		vv := v.Field(i)
+		err = dec.decodeField(vv)
+		if err != nil {
+			return
+		}
 	}
 	return
 }
@@ -245,7 +259,8 @@ func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 		case TagInteger, TagEnumerated:
 			ok = !constructed && reflect.Int <= v.Kind() && v.Kind() <= reflect.Int64
 		case TagSequence:
-			ok = constructed && v.Kind() == reflect.Slice
+			okKind := v.Kind() == reflect.Slice || v.Kind() == reflect.Struct
+			ok = constructed && okKind
 		}
 	}
 

@@ -241,3 +241,28 @@ func TestDecodeNestedSequenceSlice(t *testing.T) {
 	var out [][]bool
 	runDecoderTests(t, tests, withValue(&out))
 }
+
+type point struct {
+	X, Y int
+}
+
+type namedPoint struct {
+	Point point
+	Name []byte
+}
+
+func TestDecodeSequenceStruct(t *testing.T) {
+	tests := []decoderTest {
+		{[]byte{0x30, 0x0d,
+				0x30, 0x06, 0x02, 0x01, 0x06, 0x02, 0x01, 0x07, // point{6, 7}
+				0x04, 0x03, 'f', 'o', 'o',
+			}, true, namedPoint{point{6, 7}, []byte("foo")}},
+		{[]byte{0x30, 0x80,
+				0x30, 0x06, 0x02, 0x01, 0x2a, 0x02, 0x01, 0x18, // point{42, 24}
+				0x04, 0x03, 'b', 'a', 'r',
+				0x00, 0x00,
+			}, true, namedPoint{point{42, 24}, []byte("bar")}},
+	}
+	var out namedPoint
+	runDecoderTests(t, tests, withValue(&out))
+}
