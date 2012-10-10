@@ -22,7 +22,8 @@ func runDecoderTests(t *testing.T, tests []decoderTest, decode decodeFn) {
 				i, err == nil, test.ok, err)
 		}
 		if err == nil && !reflect.DeepEqual(test.out, out) {
-			t.Errorf("#%d: Bad result: %v (expected %v)", i, out, test.out)
+			t.Errorf("#%d: Bad result: %v %v (expected %v %v)",
+				i, reflect.TypeOf(out), out, reflect.TypeOf(test.out), test.out)
 		}
 	}
 }
@@ -215,5 +216,28 @@ func TestOtherErrors(t *testing.T) {
 		{[]byte{0xc5, 0x00}, false, nil},
 	}
 	var out interface{}
+	runDecoderTests(t, tests, withValue(&out))
+}
+
+func TestDecodeSequenceSlice(t *testing.T) {
+	tests := []decoderTest{
+		{[]byte{0x30, 0x00}, true, []bool{}},
+		{[]byte{0x30, 0x80, 0x00, 0x00}, true, []bool{}},
+		{[]byte{0x30, 0x06, 0x01, 0x01, 0x00, 0x01, 0x01, 0x01}, true, []bool{false, true}},
+		{[]byte{0x30, 0x80, 0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00}, true, []bool{true, false}},
+	}
+	var out []bool
+	runDecoderTests(t, tests, withValue(&out))
+}
+
+func TestDecodeNestedSequenceSlice(t *testing.T) {
+	tests := []decoderTest{
+		{[]byte{0x30, 0x00}, true, [][]bool{}},
+		{[]byte{0x30, 0x80,
+  				0x30, 0x03, 0x01, 0x01, 0x00,
+				0x30, 0x03, 0x01, 0x01, 0x01,
+				0x00, 0x00}, true, [][]bool{[]bool{false}, []bool{true}}},
+	}
+	var out [][]bool
 	runDecoderTests(t, tests, withValue(&out))
 }

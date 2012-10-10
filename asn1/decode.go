@@ -1,6 +1,7 @@
 package asn1
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"reflect"
@@ -24,7 +25,10 @@ func (dec *Decoder) Decode(out interface{}) error {
 	return dec.decodeField(v)
 }
 
-var rawValueType  = reflect.TypeOf(RawValue{})
+var (
+	rawValueType  = reflect.TypeOf(RawValue{})
+	EOC = fmt.Errorf("End-Of-Content")
+)
 
 func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 	class, tag, constructed, err := dec.decodeType()
@@ -32,9 +36,19 @@ func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 		return
 	}
 
+	if class == 0x00 && tag == 0x00 {
+		_, err = dec.r.Read(dec.buf[:1])
+		if err != nil {
+			return err
+		} else if l := dec.buf[0]; l != 0x00 {
+			return SyntaxError{fmt.Sprintf("End-Of-Content tag with non-zero length byte %#x", l)}
+		}
+		return EOC
+	}
+
 	if v.Type() == rawValueType {
 		raw := RawValue{Class:class, Tag:tag, Constructed:constructed}
-		raw.Bytes, err = dec.readContent()
+		raw.Bytes, err = dec.decodeLengthAndContent()
 		if err != nil {
 			return
 		}
@@ -48,17 +62,54 @@ func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 	}
 
 	if constructed {
-		return dec.decodeConstructed(class, tag, v)
+		return dec.decodeConstructed(v)
 	}
-	return dec.decodePrimitive(class, tag, v)
+	return dec.decodePrimitive(v)
 }
 
-func (dec *Decoder) decodeConstructed(class, tag int, v reflect.Value) (err error) {
-	return StructuralError{"constructed values not yet supported"}
+func (dec *Decoder) decodeConstructed(v reflect.Value) (err error) {
+	switch v.Kind() {
+	case reflect.Slice:
+		return dec.decodeSequenceSlice(v)
+	}
+	return StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
 }
 
-func (dec *Decoder) decodePrimitive(class, tag int, v reflect.Value) (err error) {
-	b, err := dec.readContent()
+func (dec *Decoder) decodeSequenceSlice(v reflect.Value) (err error) {
+	length, indefinite, err := dec.decodeLength()
+	if err != nil {
+		return
+	}
+
+	if !indefinite {
+		b, err := dec.decodeContent(length, indefinite)
+		if err != nil {
+			return err
+		}
+		defer func(r io.Reader) {
+			dec.r = r
+		}(dec.r)
+		dec.r = bytes.NewReader(b)
+	}
+
+	t := v.Type().Elem()
+	v.Set(reflect.MakeSlice(v.Type(), 0, 0))
+	for ok := true; ok; {
+		vv := reflect.New(t).Elem()
+		err = dec.decodeField(vv)
+		if err == EOC || err == io.EOF {
+			err = nil
+			break
+		} else if err != nil {
+			return
+		}
+		v.Set(reflect.Append(v, vv))
+	}
+	return
+}
+
+func (dec *Decoder) decodePrimitive(v reflect.Value) (err error) {
+	b, err := dec.decodeLengthAndContent()
 	if err != nil {
 		return
 	}
@@ -113,13 +164,16 @@ func (dec *Decoder) decodeType() (class, tag int, constructed bool, err error) {
 	return
 }
 
-func (dec *Decoder) readContent() (b []byte, err error) {
-	length, isIndefinite, err := dec.decodeLength()
+func (dec *Decoder) decodeLengthAndContent() (b []byte, err error) {
+	length, indefinite, err := dec.decodeLength()
 	if err != nil {
 		return
 	}
+	return dec.decodeContent(length, indefinite)
+}
 
-	if isIndefinite {
+func (dec *Decoder) decodeContent(length int, indefinite bool) (b []byte, err error) {
+	if indefinite {
 		b = make([]byte, 2)
 		_, err = io.ReadFull(dec.r, b)
 		if err != nil {
@@ -190,6 +244,8 @@ func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 			ok = !constructed && v.Kind() == reflect.Slice && v.Type().Elem().Kind() == reflect.Uint8
 		case TagInteger, TagEnumerated:
 			ok = !constructed && reflect.Int <= v.Kind() && v.Kind() <= reflect.Int64
+		case TagSequence:
+			ok = constructed && v.Kind() == reflect.Slice
 		}
 	}
 
