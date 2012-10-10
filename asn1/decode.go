@@ -206,13 +206,6 @@ func decodeByteSlice(raw RawValue, v reflect.Value) (err error) {
 	return
 }
 
-func decodeNull(raw RawValue, v reflect.Value) error {
-	if len(raw.Bytes) != 0 {
-		return SyntaxError{fmt.Sprintf("null must not have content (len = %d)", len(raw.Bytes))}
-	}
-	return nil
-}
-
 func decodeInteger(raw RawValue, v reflect.Value) error {
 	if len(raw.Bytes) == 0 {
 		return SyntaxError{"integer must have at least one byte of content"}
