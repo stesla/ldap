@@ -131,16 +131,6 @@ func TestDecodeByteSlice(t *testing.T) {
 	runDecoderTests(t, tests, withValue(&out))
 }
 
-func TestDecodeNull(t *testing.T) {
-	tests := []decoderTest{
-		{[]byte{0x05, 0x00}, true, Null{}},
-		{[]byte{0x05, 0x01, 0x01}, false, nil},
-		{[]byte{0x25, 0x00}, false, nil},
-	}
-	var out Null
-	runDecoderTests(t, tests, withValue(&out))
-}
-
 func TestDecodeInt64(t *testing.T) {
 	tests := []decoderTest{
 		{[]byte{0x02, 0x01, 0x00}, true, int64(0)},
@@ -224,6 +214,6 @@ func TestOtherErrors(t *testing.T) {
 		{[]byte{0x85, 0x00}, false, nil},
 		{[]byte{0xc5, 0x00}, false, nil},
 	}
-	var out Null
+	var out interface{}
 	runDecoderTests(t, tests, withValue(&out))
 }

@@ -24,6 +24,8 @@ func (dec *Decoder) Decode(out interface{}) error {
 	return dec.decodeField(v)
 }
 
+var rawValueType  = reflect.TypeOf(RawValue{})
+
 func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 	raw, err := dec.decodeRawValue()
 	if err != nil {
@@ -164,8 +166,6 @@ func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 			ok = !constructed && v.Kind() == reflect.Slice && v.Type().Elem().Kind() == reflect.Uint8
 		case TagInteger, TagEnumerated:
 			ok = !constructed && reflect.Int <= v.Kind() && v.Kind() <= reflect.Int64
-		case TagNull:
-			ok = !constructed && v.Type() == nullType
 		}
 	}
 
@@ -178,17 +178,7 @@ func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 	return
 }
 
-var (
-	nullType      = reflect.TypeOf(Null{})
-	rawValueType  = reflect.TypeOf(RawValue{})
-)
-
 func decodeValue(raw RawValue, v reflect.Value) (err error) {
-	switch v.Type() {
-	case nullType:
-		return decodeNull(raw, v)
-	}
-
 	switch v.Kind() {
 	case reflect.Slice:
 		if v.Type().Elem().Kind() == reflect.Uint8 {

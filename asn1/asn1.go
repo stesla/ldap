@@ -56,7 +56,3 @@ type RawValue struct {
 	Constructed bool
 	Bytes       []byte
 }
-
-type Null struct{}
-
-type Enumerated int
