@@ -10,14 +10,14 @@ import (
 type Decoder struct {
 	Implicit bool
 	r        io.Reader
-	buf      []byte
+	b        []byte
 }
 
 func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{
 		r: r,
 		// 10 bytes ought to be long enough for any tag or length
-		buf: make([]byte, 10),
+		b: make([]byte, 1, 10),
 	}
 }
 
@@ -43,10 +43,10 @@ func (dec *Decoder) decodeField(v reflect.Value, opts fieldOptions) (err error) 
 	}
 
 	if class == 0x00 && tag == 0x00 {
-		_, err = dec.r.Read(dec.buf[:1])
+		_, err = dec.r.Read(dec.b[:1])
 		if err != nil {
 			return err
-		} else if l := dec.buf[0]; l != 0x00 {
+		} else if l := dec.b[0]; l != 0x00 {
 			return SyntaxError(fmt.Sprintf("End-Of-Content tag with non-zero length byte %#x", l))
 		}
 		return EOC
@@ -183,35 +183,37 @@ func (dec *Decoder) decodePrimitive(v reflect.Value) (err error) {
 }
 
 func (dec *Decoder) decodeType() (class, tag int, constructed bool, err error) {
-	_, err = dec.r.Read(dec.buf[0:1])
+	dec.b = dec.b[:1]
+	_, err = io.ReadFull(dec.r, dec.b)
 	if err != nil {
 		return
 	}
 
-	class = int(dec.buf[0] >> 6)
-	constructed = dec.buf[0]&0x20 == 0x20
+	class = int(dec.b[0] >> 6)
+	constructed = dec.b[0]&0x20 == 0x20
 
-	if c := dec.buf[0] & 0x1f; c < 0x1f {
+	if c := dec.b[0] & 0x1f; c < 0x1f {
 		tag = int(c)
 	} else {
-		_, err = dec.r.Read(dec.buf[0:1])
+		dec.b = dec.b[:len(dec.b)+1]
+		_, err = io.ReadFull(dec.r, dec.b[len(dec.b)-1:len(dec.b)])
 		if err != nil {
 			return
 		}
 
-		if dec.buf[0]&0x7f == 0 {
+		if dec.b[len(dec.b)-1]&0x7f == 0 {
 			err = SyntaxError("long-form tag")
 			return
 		}
 
 		for {
-			tag = tag<<7 | int(dec.buf[0]&0x1f)
-
-			if dec.buf[0]&0x80 == 0 {
+			tag = tag<<7 | int(dec.b[len(dec.b)-1]&0x1f)
+			if dec.b[len(dec.b)-1]&0x80 == 0 {
 				break
 			}
 
-			_, err = dec.r.Read(dec.buf[0:1])
+			dec.b = dec.b[:len(dec.b)+1]
+			_, err = io.ReadFull(dec.r, dec.b[len(dec.b)-1:len(dec.b)])
 			if err != nil {
 				return
 			}
@@ -262,12 +264,12 @@ func (dec *Decoder) decodeContent(length int, indefinite bool) (b []byte, err er
 }
 
 func (dec *Decoder) decodeLength() (length int, isIndefinite bool, err error) {
-	_, err = dec.r.Read(dec.buf[0:1])
+	_, err = dec.r.Read(dec.b[0:1])
 	if err != nil {
 		return
 	}
 
-	if c := dec.buf[0]; c < 0x80 {
+	if c := dec.b[0]; c < 0x80 {
 		length = int(c)
 	} else if c == 0x80 {
 		isIndefinite = true
@@ -277,11 +279,11 @@ func (dec *Decoder) decodeLength() (length int, isIndefinite bool, err error) {
 	} else {
 		var width int
 		n := c & 0x7f
-		width, err = io.ReadFull(dec.r, dec.buf[0:n])
+		width, err = io.ReadFull(dec.r, dec.b[0:n])
 		if err != nil {
 			return
 		}
-		for _, b := range dec.buf[0:width] {
+		for _, b := range dec.b[0:width] {
 			length = length<<8 | int(b)
 		}
 	}
@@ -294,7 +296,7 @@ func (dec *Decoder) checkTag(class, tag int, constructed bool, opts fieldOptions
 	if opts.tag != nil {
 		ok = tag == *opts.tag &&
 			((opts.implicit != nil && *opts.implicit) || dec.Implicit || constructed) &&
-			((opts.application && class == ClassApplication) ||	class == ClassContextSpecific)
+			((opts.application && class == ClassApplication) || class == ClassContextSpecific)
 	} else if class == ClassUniversal {
 		switch tag {
 		case TagBoolean:
