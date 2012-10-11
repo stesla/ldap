@@ -46,6 +46,20 @@ func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 		return EOC
 	}
 
+	for {
+		if k := v.Kind(); k == reflect.Ptr || k == reflect.Interface {
+			v = v.Elem()
+		} else {
+			break
+		}
+	}
+
+	if !v.IsValid() {
+		return StructuralError{"IsValid = false"}
+	} else if !v.CanSet() {
+		return StructuralError{"CanSet = false"}
+	}
+
 	if v.Type() == rawValueType {
 		raw := RawValue{Class:class, Tag:tag, Constructed:constructed}
 		raw.Bytes, err = dec.decodeLengthAndContent()

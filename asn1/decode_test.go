@@ -289,3 +289,16 @@ func TestDecodeSequenceStruct(t *testing.T) {
 	var out namedPoint
 	runDecoderTests(t, tests, withValue(&out))
 }
+
+type ipoint struct {
+	X, Y interface{}
+}
+
+func TestExtraIndirection(t *testing.T) {
+	a, b := 4, 2
+	test := []decoderTest{
+		{[]byte{0x30, 0x06, 0x02, 0x01, 0x04, 0x02, 0x01, 0x02}, true, ipoint{&a, &b}},
+	}
+	out := ipoint{new(int), new(int)}
+	runDecoderTests(t, test, withValue(&out))
+}
