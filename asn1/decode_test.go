@@ -36,17 +36,13 @@ func withDecoder(fn func(int, *Decoder) (interface{}, error)) decodeFn {
 	}
 }
 
-func reset(v reflect.Value, orig interface{}) {
-	if v.IsValid() && v.CanSet() {
-		v.Set(reflect.ValueOf(orig))
-	}
-}
-
 func withInitialValue(out interface{}, fn func(i int, dec *Decoder) error) decodeFn {
 	v := reflect.Indirect(reflect.ValueOf(out))
 	orig := v.Interface()
 	return withDecoder(func(i int, dec *Decoder) (interface{}, error) {
-		reset(v, orig)
+		if v.IsValid() && v.CanSet() {
+			v.Set(reflect.ValueOf(orig))
+		}
 		err := fn(i, dec)
 		return v.Interface(), err
 	})
