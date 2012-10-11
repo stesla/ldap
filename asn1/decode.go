@@ -11,18 +11,31 @@ type Decoder struct {
 	Implicit bool
 	r        io.Reader
 	b        []byte
+	typeb []byte
+	lenb       []byte
 }
 
 func NewDecoder(r io.Reader) *Decoder {
 	return &Decoder{
 		r: r,
+		b: make([]byte, 0, 10),
 		// 10 bytes ought to be long enough for any tag or length
-		b: make([]byte, 1, 10),
+		typeb: make([]byte, 1, 10),
+		lenb: make([]byte, 1, 10),
 	}
 }
 
-func (dec *Decoder) Read(out []byte) (int, error) {
-	return dec.r.Read(out)
+func (dec *Decoder) Read(out []byte) (n int, err error) {
+	if len(dec.b) > 0 {
+		n = copy(out, dec.b)
+		dec.b = dec.b[n:]
+	}
+	if n < len(out) {
+		var nn int
+		nn, err = dec.r.Read(out[n:])
+		n += nn
+	}
+	return
 }
 
 func (dec *Decoder) Decode(out interface{}) error {
@@ -47,10 +60,10 @@ func (dec *Decoder) decodeField(v reflect.Value, opts fieldOptions) (err error) 
 	}
 
 	if class == 0x00 && tag == 0x00 {
-		_, err = dec.Read(dec.b[:1])
+		_, err = dec.Read(dec.lenb[:1])
 		if err != nil {
 			return err
-		} else if l := dec.b[0]; l != 0x00 {
+		} else if l := dec.lenb[0]; l != 0x00 {
 			return SyntaxError(fmt.Sprintf("End-Of-Content tag with non-zero length byte %#x", l))
 		}
 		return EOC
@@ -151,7 +164,16 @@ func (dec *Decoder) decodeSequenceStruct(v reflect.Value) (err error) {
 		opts := parseFieldOptions(vt.Tag.Get("asn1"))
 		err = dec.decodeField(vv, opts)
 		if err != nil {
-			return
+			if !opts.optional {
+				return
+			}
+			if err == EOC {
+				dec.b = append(dec.b, 0x00, 0x00)
+			} else {
+				n := copy(dec.b[:cap(dec.b)], dec.typeb)
+				dec.b = dec.b[:n]
+			}
+			err = nil
 		}
 	}
 	err = dec.decodeEndOfContent()
@@ -187,37 +209,37 @@ func (dec *Decoder) decodePrimitive(v reflect.Value) (err error) {
 }
 
 func (dec *Decoder) decodeType() (class, tag int, constructed bool, err error) {
-	dec.b = dec.b[:1]
-	_, err = io.ReadFull(dec, dec.b)
+	dec.typeb = dec.typeb[:1]
+	_, err = io.ReadFull(dec, dec.typeb)
 	if err != nil {
 		return
 	}
 
-	class = int(dec.b[0] >> 6)
-	constructed = dec.b[0]&0x20 == 0x20
+	class = int(dec.typeb[0] >> 6)
+	constructed = dec.typeb[0]&0x20 == 0x20
 
-	if c := dec.b[0] & 0x1f; c < 0x1f {
+	if c := dec.typeb[0] & 0x1f; c < 0x1f {
 		tag = int(c)
 	} else {
-		dec.b = dec.b[:len(dec.b)+1]
-		_, err = io.ReadFull(dec, dec.b[len(dec.b)-1:len(dec.b)])
+		dec.typeb = dec.typeb[:len(dec.typeb)+1]
+		_, err = io.ReadFull(dec, dec.typeb[len(dec.typeb)-1:len(dec.typeb)])
 		if err != nil {
 			return
 		}
 
-		if dec.b[len(dec.b)-1]&0x7f == 0 {
+		if dec.typeb[len(dec.typeb)-1]&0x7f == 0 {
 			err = SyntaxError("long-form tag")
 			return
 		}
 
 		for {
-			tag = tag<<7 | int(dec.b[len(dec.b)-1]&0x1f)
-			if dec.b[len(dec.b)-1]&0x80 == 0 {
+			tag = tag<<7 | int(dec.typeb[len(dec.typeb)-1]&0x1f)
+			if dec.typeb[len(dec.typeb)-1]&0x80 == 0 {
 				break
 			}
 
-			dec.b = dec.b[:len(dec.b)+1]
-			_, err = io.ReadFull(dec, dec.b[len(dec.b)-1:len(dec.b)])
+			dec.typeb = dec.typeb[:len(dec.typeb)+1]
+			_, err = io.ReadFull(dec, dec.typeb[len(dec.typeb)-1:len(dec.typeb)])
 			if err != nil {
 				return
 			}
@@ -268,12 +290,12 @@ func (dec *Decoder) decodeContent(length int, indefinite bool) (b []byte, err er
 }
 
 func (dec *Decoder) decodeLength() (length int, isIndefinite bool, err error) {
-	_, err = dec.Read(dec.b[0:1])
+	_, err = dec.Read(dec.lenb[0:1])
 	if err != nil {
 		return
 	}
 
-	if c := dec.b[0]; c < 0x80 {
+	if c := dec.lenb[0]; c < 0x80 {
 		length = int(c)
 	} else if c == 0x80 {
 		isIndefinite = true
@@ -283,11 +305,11 @@ func (dec *Decoder) decodeLength() (length int, isIndefinite bool, err error) {
 	} else {
 		var width int
 		n := c & 0x7f
-		width, err = io.ReadFull(dec, dec.b[0:n])
+		width, err = io.ReadFull(dec, dec.lenb[0:n])
 		if err != nil {
 			return
 		}
-		for _, b := range dec.b[0:width] {
+		for _, b := range dec.lenb[0:width] {
 			length = length<<8 | int(b)
 		}
 	}

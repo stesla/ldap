@@ -62,6 +62,7 @@ type fieldOptions struct {
 	tag         *int
 	implicit    *bool
 	application bool
+	optional bool
 }
 
 func parseFieldOptions(s string) (ret fieldOptions) {
@@ -89,6 +90,8 @@ func parseFieldOptions(s string) (ret fieldOptions) {
 				ret.tag = new(int)
 				*ret.tag = i
 			}
+		case part == "optional":
+			ret.optional = true
 		}
 	}
 	return

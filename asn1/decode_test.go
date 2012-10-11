@@ -36,17 +36,31 @@ func withDecoder(fn func(int, *Decoder) (interface{}, error)) decodeFn {
 	}
 }
 
-func withValue(out interface{}) decodeFn {
+func reset(v reflect.Value, orig interface{}) {
+	if v.IsValid() && v.CanSet() {
+		v.Set(reflect.ValueOf(orig))
+	}
+}
+
+func withInitialValue(out interface{}, fn func(i int, dec *Decoder) error) decodeFn {
+	v := reflect.Indirect(reflect.ValueOf(out))
+	orig := v.Interface()
 	return withDecoder(func(i int, dec *Decoder) (interface{}, error) {
-		err := dec.Decode(out)
-		return reflect.ValueOf(out).Elem().Interface(), err
+		reset(v, orig)
+		err := fn(i, dec)
+		return v.Interface(), err
+	})
+}
+
+func withValue(out interface{}) decodeFn {
+	return withInitialValue(out, func(i int, dec *Decoder) error {
+		return dec.Decode(out)
 	})
 }
 
 func withValueOptions(out interface{}, opts map[int]string) decodeFn {
-	return withDecoder(func(i int, dec *Decoder) (interface{}, error) {
-		err := dec.DecodeWithOptions(out, opts[i])
-		return reflect.ValueOf(out).Elem().Interface(), err
+	return withInitialValue(out, func(i int, dec *Decoder) error {
+		return dec.DecodeWithOptions(out, opts[i])
 	})
 }
 
@@ -223,7 +237,7 @@ func TestOtherErrors(t *testing.T) {
 		{[]byte{0x85, 0x00}, false, nil},
 		{[]byte{0xc5, 0x00}, false, nil},
 	}
-	var out interface{}
+	var out interface{} = false
 	runDecoderTests(t, tests, withValue(&out))
 }
 
@@ -355,5 +369,25 @@ func TestTaggedStructFields(t *testing.T) {
 		{[]byte{0x30, 0x06, 0x02, 0x01, 0x06, 0x02, 0x01, 0x07}, false, nil},
 	}
 	var out tpoint
+	runDecoderTests(t, tests, withValue(&out))
+}
+
+
+type opoint struct {
+	X int `asn1:"optional"`
+	Y int `asn1:"tag:0,implicit,optional"`
+}
+
+func TestOptionalgStructFields(t *testing.T) {
+	tests := []decoderTest{
+		{[]byte{0x30, 0x06, 0x02, 0x01, 0x06, 0x80, 0x01, 0x07}, true, opoint{6, 7}},
+		{[]byte{0x30, 0x06, 0x02, 0x01, 0x00, 0x80, 0x01, 0x00}, true, opoint{}},
+		{[]byte{0x30, 0x03, 0x02, 0x01, 0x10}, true, opoint{X: 16}},
+		{[]byte{0x30, 0x06, 0x02, 0x01, 0x00, 0x80, 0x01, 0x00}, true, opoint{}},
+		{[]byte{0x30, 0x03, 0x80, 0x01, 0x20}, true, opoint{Y: 32}},
+		{[]byte{0x30, 0x06, 0x02, 0x01, 0x00, 0x80, 0x01, 0x00}, true, opoint{}},
+		{[]byte{0x30, 0x00}, true, opoint{}},
+	}
+	out := opoint{}
 	runDecoderTests(t, tests, withValue(&out))
 }
