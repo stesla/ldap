@@ -21,6 +21,10 @@ func NewDecoder(r io.Reader) *Decoder {
 	}
 }
 
+func (dec *Decoder) Read(out []byte) (int, error) {
+	return dec.r.Read(out)
+}
+
 func (dec *Decoder) Decode(out interface{}) error {
 	return dec.DecodeWithOptions(out, "")
 }
@@ -43,7 +47,7 @@ func (dec *Decoder) decodeField(v reflect.Value, opts fieldOptions) (err error) 
 	}
 
 	if class == 0x00 && tag == 0x00 {
-		_, err = dec.r.Read(dec.b[:1])
+		_, err = dec.Read(dec.b[:1])
 		if err != nil {
 			return err
 		} else if l := dec.b[0]; l != 0x00 {
@@ -184,7 +188,7 @@ func (dec *Decoder) decodePrimitive(v reflect.Value) (err error) {
 
 func (dec *Decoder) decodeType() (class, tag int, constructed bool, err error) {
 	dec.b = dec.b[:1]
-	_, err = io.ReadFull(dec.r, dec.b)
+	_, err = io.ReadFull(dec, dec.b)
 	if err != nil {
 		return
 	}
@@ -196,7 +200,7 @@ func (dec *Decoder) decodeType() (class, tag int, constructed bool, err error) {
 		tag = int(c)
 	} else {
 		dec.b = dec.b[:len(dec.b)+1]
-		_, err = io.ReadFull(dec.r, dec.b[len(dec.b)-1:len(dec.b)])
+		_, err = io.ReadFull(dec, dec.b[len(dec.b)-1:len(dec.b)])
 		if err != nil {
 			return
 		}
@@ -213,7 +217,7 @@ func (dec *Decoder) decodeType() (class, tag int, constructed bool, err error) {
 			}
 
 			dec.b = dec.b[:len(dec.b)+1]
-			_, err = io.ReadFull(dec.r, dec.b[len(dec.b)-1:len(dec.b)])
+			_, err = io.ReadFull(dec, dec.b[len(dec.b)-1:len(dec.b)])
 			if err != nil {
 				return
 			}
@@ -233,7 +237,7 @@ func (dec *Decoder) decodeLengthAndContent() (b []byte, err error) {
 func (dec *Decoder) decodeContent(length int, indefinite bool) (b []byte, err error) {
 	if indefinite {
 		b = make([]byte, 2)
-		_, err = io.ReadFull(dec.r, b)
+		_, err = io.ReadFull(dec, b)
 		if err != nil {
 			return
 		}
@@ -248,14 +252,14 @@ func (dec *Decoder) decodeContent(length int, indefinite bool) (b []byte, err er
 				b = bb
 			}
 			b = b[:len(b)+1]
-			_, err = dec.r.Read(b[len(b)-1:])
+			_, err = dec.Read(b[len(b)-1:])
 			if err != nil {
 				return
 			}
 		}
 	} else {
 		b = make([]byte, length)
-		_, err = io.ReadFull(dec.r, b)
+		_, err = io.ReadFull(dec, b)
 		if err != nil {
 			return
 		}
@@ -264,7 +268,7 @@ func (dec *Decoder) decodeContent(length int, indefinite bool) (b []byte, err er
 }
 
 func (dec *Decoder) decodeLength() (length int, isIndefinite bool, err error) {
-	_, err = dec.r.Read(dec.b[0:1])
+	_, err = dec.Read(dec.b[0:1])
 	if err != nil {
 		return
 	}
@@ -279,7 +283,7 @@ func (dec *Decoder) decodeLength() (length int, isIndefinite bool, err error) {
 	} else {
 		var width int
 		n := c & 0x7f
-		width, err = io.ReadFull(dec.r, dec.b[0:n])
+		width, err = io.ReadFull(dec, dec.b[0:n])
 		if err != nil {
 			return
 		}
