@@ -81,6 +81,7 @@ func (dec *Decoder) decodeConstructed(v reflect.Value) (err error) {
 		defer func(r io.Reader) {
 			dec.r = r
 		}(dec.r)
+		b = append(b, 0x00, 0x00)
 		dec.r = bytes.NewReader(b)
 	}
 
@@ -99,7 +100,7 @@ func (dec *Decoder) decodeSequenceSlice(v reflect.Value) (err error) {
 	for ok := true; ok; {
 		vv := reflect.New(t).Elem()
 		err = dec.decodeField(vv)
-		if err == EOC || err == io.EOF {
+		if err == EOC {
 			err = nil
 			break
 		} else if err != nil {
@@ -118,6 +119,12 @@ func (dec *Decoder) decodeSequenceStruct(v reflect.Value) (err error) {
 		if err != nil {
 			return
 		}
+	}
+	err = dec.decodeField(reflect.ValueOf(&RawValue{}).Elem())
+	if err == EOC {
+		err = nil
+	} else if err == nil {
+		err = StructuralError{"ran out of struct fields before end-of-content"}
 	}
 	return
 }
