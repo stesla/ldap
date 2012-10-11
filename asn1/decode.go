@@ -26,8 +26,8 @@ func (dec *Decoder) Decode(out interface{}) error {
 }
 
 var (
-	rawValueType  = reflect.TypeOf(RawValue{})
-	EOC = fmt.Errorf("End-Of-Content")
+	rawValueType = reflect.TypeOf(RawValue{})
+	EOC          = fmt.Errorf("End-Of-Content")
 )
 
 func (dec *Decoder) decodeField(v reflect.Value) (err error) {
@@ -61,7 +61,7 @@ func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 	}
 
 	if v.Type() == rawValueType {
-		raw := RawValue{Class:class, Tag:tag, Constructed:constructed}
+		raw := RawValue{Class: class, Tag: tag, Constructed: constructed}
 		raw.Bytes, err = dec.decodeLengthAndContent()
 		if err != nil {
 			return
@@ -288,7 +288,7 @@ func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 	if !ok {
 		err = StructuralError(
 			fmt.Sprintf("tag mismatch (class = %#x, tag = %#x, constructed = %t, type = %v)",
-			class, tag, constructed, v.Type()))
+				class, tag, constructed, v.Type()))
 	}
 
 	return
