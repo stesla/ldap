@@ -39,17 +39,13 @@ const ( // ASN.1 Universal Tags
 	// TagBMPString        = 0x1e
 )
 
-type StructuralError struct {
-	Msg string
-}
+type StructuralError string
 
-func (e StructuralError) Error() string { return "ASN.1 Structural Error: " + e.Msg }
+func (e StructuralError) Error() string { return "ASN.1 Structural Error: " + string(e) }
 
-type SyntaxError struct {
-	Msg string
-}
+type SyntaxError string
 
-func (e SyntaxError) Error() string { return "ASN.1 Syntax Error: " + e.Msg }
+func (e SyntaxError) Error() string { return "ASN.1 Syntax Error: " + string(e) }
 
 type RawValue struct {
 	Class, Tag  int

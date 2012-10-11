@@ -41,7 +41,7 @@ func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 		if err != nil {
 			return err
 		} else if l := dec.buf[0]; l != 0x00 {
-			return SyntaxError{fmt.Sprintf("End-Of-Content tag with non-zero length byte %#x", l)}
+			return SyntaxError(fmt.Sprintf("End-Of-Content tag with non-zero length byte %#x", l))
 		}
 		return EOC
 	}
@@ -55,9 +55,9 @@ func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 	}
 
 	if !v.IsValid() {
-		return StructuralError{"IsValid = false"}
+		return StructuralError("IsValid = false")
 	} else if !v.CanSet() {
-		return StructuralError{"CanSet = false"}
+		return StructuralError("CanSet = false")
 	}
 
 	if v.Type() == rawValueType {
@@ -105,7 +105,7 @@ func (dec *Decoder) decodeConstructed(v reflect.Value) (err error) {
 	case reflect.Struct:
 		return dec.decodeSequenceStruct(v)
 	}
-	return StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
+	return StructuralError(fmt.Sprintf("Unsupported Type: %v", v.Type()))
 }
 
 func (dec *Decoder) decodeSequenceSlice(v reflect.Value) (err error) {
@@ -138,7 +138,7 @@ func (dec *Decoder) decodeSequenceStruct(v reflect.Value) (err error) {
 	if err == EOC {
 		err = nil
 	} else if err == nil {
-		err = StructuralError{"ran out of struct fields before end-of-content"}
+		err = StructuralError("ran out of struct fields before end-of-content")
 	}
 	return
 }
@@ -158,7 +158,7 @@ func (dec *Decoder) decodePrimitive(v reflect.Value) (err error) {
 	case reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8, reflect.Int:
 		return decodeInteger(b, v)
 	}
-	return StructuralError{fmt.Sprintf("Unsupported Type: %v", v.Type())}
+	return StructuralError(fmt.Sprintf("Unsupported Type: %v", v.Type()))
 }
 
 func (dec *Decoder) decodeType() (class, tag int, constructed bool, err error) {
@@ -179,7 +179,7 @@ func (dec *Decoder) decodeType() (class, tag int, constructed bool, err error) {
 		}
 
 		if dec.buf[0]&0x7f == 0 {
-			err = SyntaxError{"long-form tag"}
+			err = SyntaxError("long-form tag")
 			return
 		}
 
@@ -251,7 +251,7 @@ func (dec *Decoder) decodeLength() (length int, isIndefinite bool, err error) {
 	} else if c == 0x80 {
 		isIndefinite = true
 	} else if c == 0xff {
-		err = SyntaxError{"long-form length"}
+		err = SyntaxError("long-form length")
 		return
 	} else {
 		var width int
@@ -286,9 +286,9 @@ func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 	}
 
 	if !ok {
-		err = StructuralError{
+		err = StructuralError(
 			fmt.Sprintf("tag mismatch (class = %#x, tag = %#x, constructed = %t, type = %v)",
-				class, tag, constructed, v.Type())}
+			class, tag, constructed, v.Type()))
 	}
 
 	return
@@ -296,7 +296,7 @@ func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
 
 func decodeBool(b []byte, v reflect.Value) error {
 	if len(b) != 1 {
-		return SyntaxError{fmt.Sprintf("booleans must be only one byte (len = %d)", len(b))}
+		return SyntaxError(fmt.Sprintf("booleans must be only one byte (len = %d)", len(b)))
 	}
 	v.SetBool(b[0] != 0)
 	return nil
@@ -309,7 +309,7 @@ func decodeByteSlice(b []byte, v reflect.Value) (err error) {
 
 func decodeInteger(b []byte, v reflect.Value) error {
 	if len(b) == 0 {
-		return SyntaxError{"integer must have at least one byte of content"}
+		return SyntaxError("integer must have at least one byte of content")
 	}
 
 	var i int64
@@ -318,7 +318,7 @@ func decodeInteger(b []byte, v reflect.Value) error {
 	}
 
 	if v.OverflowInt(i) {
-		return StructuralError{"integer overflow"}
+		return StructuralError("integer overflow")
 	}
 
 	v.SetInt(i)
