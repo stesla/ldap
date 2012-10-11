@@ -1,5 +1,10 @@
 package asn1
 
+import (
+	"strconv"
+	"strings"
+)
+
 const ( // ASN.1 Classes
 	ClassUniversal       = 0 // 0b00
 	ClassApplication     = 1 // 0b01
@@ -51,4 +56,40 @@ type RawValue struct {
 	Class, Tag  int
 	Constructed bool
 	Bytes       []byte
+}
+
+type fieldOptions struct {
+	tag         *int
+	implicit    *bool
+	application bool
+}
+
+func parseFieldOptions(s string) (ret fieldOptions) {
+	for _, part := range strings.Split(s, ",") {
+		switch {
+		case part == "application":
+			ret.application = true
+			if ret.tag == nil {
+				ret.tag = new(int)
+			}
+		case part == "implicit":
+			ret.implicit = new(bool)
+			*ret.implicit = true
+			if ret.tag == nil {
+				ret.tag = new(int)
+			}
+		case part == "explicit":
+			ret.implicit = new(bool)
+			if ret.tag == nil {
+				ret.tag = new(int)
+			}
+		case strings.HasPrefix(part, "tag:"):
+			i, err := strconv.Atoi(part[4:])
+			if err == nil {
+				ret.tag = new(int)
+				*ret.tag = i
+			}
+		}
+	}
+	return
 }

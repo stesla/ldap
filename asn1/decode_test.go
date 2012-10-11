@@ -12,11 +12,11 @@ type decoderTest struct {
 	out interface{}
 }
 
-type decodeFn func(interface{}) (interface{}, error)
+type decodeFn func(int, interface{}) (interface{}, error)
 
 func runDecoderTests(t *testing.T, tests []decoderTest, decode decodeFn) {
 	for i, test := range tests {
-		out, err := decode(test.in)
+		out, err := decode(i, test.in)
 		if (err == nil) != test.ok {
 			t.Errorf("#%d: Incorrect error result (passed? %v, expected %v): %s",
 				i, err == nil, test.ok, err)
@@ -28,17 +28,24 @@ func runDecoderTests(t *testing.T, tests []decoderTest, decode decodeFn) {
 	}
 }
 
-func withDecoder(fn func(*Decoder) (interface{}, error)) decodeFn {
-	return func(in interface{}) (interface{}, error) {
+func withDecoder(fn func(int, *Decoder) (interface{}, error)) decodeFn {
+	return func(i int, in interface{}) (interface{}, error) {
 		r := bytes.NewReader(in.([]byte))
 		dec := NewDecoder(r)
-		return fn(dec)
+		return fn(i, dec)
 	}
 }
 
 func withValue(out interface{}) decodeFn {
-	return withDecoder(func(dec *Decoder) (interface{}, error) {
+	return withDecoder(func(i int, dec *Decoder) (interface{}, error) {
 		err := dec.Decode(out)
+		return reflect.ValueOf(out).Elem().Interface(), err
+	})
+}
+
+func withValueOptions(out interface{}, opts map[int]string) decodeFn {
+	return withDecoder(func(i int, dec *Decoder) (interface{}, error) {
+		err := dec.DecodeWithOptions(out, opts[i])
 		return reflect.ValueOf(out).Elem().Interface(), err
 	})
 }
@@ -49,7 +56,7 @@ type tlvType struct {
 }
 
 func TestDecodeType(t *testing.T) {
-	fn := withDecoder(func(dec *Decoder) (interface{}, error) {
+	fn := withDecoder(func(i int, dec *Decoder) (interface{}, error) {
 		class, tag, isConstructed, err := dec.decodeType()
 		if err != nil {
 			return nil, err
@@ -78,7 +85,7 @@ type tlvLength struct {
 }
 
 func TestDecodeLength(t *testing.T) {
-	fn := withDecoder(func(dec *Decoder) (interface{}, error) {
+	fn := withDecoder(func(i int, dec *Decoder) (interface{}, error) {
 		length, isIndefinite, err := dec.decodeLength()
 		if err != nil {
 			return nil, err
@@ -302,4 +309,37 @@ func TestExtraIndirection(t *testing.T) {
 	}
 	out := ipoint{new(int), new(int)}
 	runDecoderTests(t, test, withValue(&out))
+}
+
+func TestTagging(t *testing.T) {
+	tests := []decoderTest{
+		{[]byte{0x01, 0x01, 0x01}, true, true},
+		{[]byte{0x81, 0x01, 0x00}, true, false},
+		{[]byte{0x42, 0x01, 0x01}, true, true},
+		{[]byte{0xA3, 0x03, 0x01, 0x01, 0x00}, true, false},
+		{[]byte{0xA4, 0x03, 0x01, 0x01, 0x01}, true, true},
+		{[]byte{0x85, 0x01, 0x00}, false, false},
+	}
+	opts := map[int]string{
+		1: "tag:1,implicit",
+		2: "tag:2,implicit,application",
+		3: "tag:3,explicit",
+		4: "tag:4",
+		5: "tag:5",
+	}
+	var out bool
+	runDecoderTests(t, tests, withValueOptions(&out, opts))
+}
+
+func TestImplicitDecoder(t *testing.T) {
+	dec := NewDecoder(bytes.NewReader([]byte{0x81, 0x01, 01}))
+	dec.Implicit = true
+	var out bool
+	err := dec.DecodeWithOptions(&out, "tag:1")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if err == nil && !out {
+		t.Errorf("Bad value: %v (expected %v)", out, true)
+	}
 }

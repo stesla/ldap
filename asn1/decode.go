@@ -8,8 +8,9 @@ import (
 )
 
 type Decoder struct {
-	r   io.Reader
-	buf []byte
+	Implicit bool
+	r        io.Reader
+	buf      []byte
 }
 
 func NewDecoder(r io.Reader) *Decoder {
@@ -21,8 +22,13 @@ func NewDecoder(r io.Reader) *Decoder {
 }
 
 func (dec *Decoder) Decode(out interface{}) error {
+	return dec.DecodeWithOptions(out, "")
+}
+
+func (dec *Decoder) DecodeWithOptions(out interface{}, options string) error {
+	opts := parseFieldOptions(options)
 	v := reflect.ValueOf(out).Elem()
-	return dec.decodeField(v)
+	return dec.decodeField(v, opts)
 }
 
 var (
@@ -30,7 +36,7 @@ var (
 	EOC          = fmt.Errorf("End-Of-Content")
 )
 
-func (dec *Decoder) decodeField(v reflect.Value) (err error) {
+func (dec *Decoder) decodeField(v reflect.Value, opts fieldOptions) (err error) {
 	class, tag, constructed, err := dec.decodeType()
 	if err != nil {
 		return
@@ -70,18 +76,18 @@ func (dec *Decoder) decodeField(v reflect.Value) (err error) {
 		return
 	}
 
-	err = checkTag(class, tag, constructed, v)
+	err = dec.checkTag(class, tag, constructed, opts, v)
 	if err != nil {
 		return
 	}
 
 	if constructed {
-		return dec.decodeConstructed(v)
+		return dec.decodeConstructed(v, opts)
 	}
 	return dec.decodePrimitive(v)
 }
 
-func (dec *Decoder) decodeConstructed(v reflect.Value) (err error) {
+func (dec *Decoder) decodeConstructed(v reflect.Value, opts fieldOptions) (err error) {
 	length, indefinite, err := dec.decodeLength()
 	if err != nil {
 		return
@@ -99,6 +105,14 @@ func (dec *Decoder) decodeConstructed(v reflect.Value) (err error) {
 		dec.r = bytes.NewReader(b)
 	}
 
+	if opts.tag != nil && (opts.implicit == nil || !*opts.implicit) {
+		err = dec.decodeField(v, fieldOptions{})
+		if err != nil {
+			return
+		}
+		return dec.decodeEndOfContent()
+	}
+
 	switch v.Kind() {
 	case reflect.Slice:
 		return dec.decodeSequenceSlice(v)
@@ -113,7 +127,7 @@ func (dec *Decoder) decodeSequenceSlice(v reflect.Value) (err error) {
 	v.Set(reflect.MakeSlice(v.Type(), 0, 0))
 	for ok := true; ok; {
 		vv := reflect.New(t).Elem()
-		err = dec.decodeField(vv)
+		err = dec.decodeField(vv, fieldOptions{})
 		if err == EOC {
 			err = nil
 			break
@@ -129,12 +143,17 @@ func (dec *Decoder) decodeSequenceStruct(v reflect.Value) (err error) {
 	max := v.NumField()
 	for i := 0; i < max; i++ {
 		vv := v.Field(i)
-		err = dec.decodeField(vv)
+		err = dec.decodeField(vv, fieldOptions{})
 		if err != nil {
 			return
 		}
 	}
-	err = dec.decodeField(reflect.ValueOf(&RawValue{}).Elem())
+	err = dec.decodeEndOfContent()
+	return
+}
+
+func (dec *Decoder) decodeEndOfContent() (err error) {
+	err = dec.decodeField(reflect.ValueOf(&RawValue{}).Elem(), fieldOptions{})
 	if err == EOC {
 		err = nil
 	} else if err == nil {
@@ -267,11 +286,14 @@ func (dec *Decoder) decodeLength() (length int, isIndefinite bool, err error) {
 	return
 }
 
-func checkTag(class, tag int, constructed bool, v reflect.Value) (err error) {
+func (dec *Decoder) checkTag(class, tag int, constructed bool, opts fieldOptions, v reflect.Value) (err error) {
 	var ok bool
 
-	switch class {
-	case ClassUniversal:
+	if opts.tag != nil {
+		ok = tag == *opts.tag &&
+			((opts.implicit != nil && *opts.implicit) || dec.Implicit || constructed) &&
+			((opts.application && class == ClassApplication) ||	class == ClassContextSpecific)
+	} else if class == ClassUniversal {
 		switch tag {
 		case TagBoolean:
 			ok = !constructed && v.Kind() == reflect.Bool
