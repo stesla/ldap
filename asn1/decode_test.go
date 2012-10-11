@@ -332,7 +332,7 @@ func TestTagging(t *testing.T) {
 }
 
 func TestImplicitDecoder(t *testing.T) {
-	dec := NewDecoder(bytes.NewReader([]byte{0x81, 0x01, 01}))
+	dec := NewDecoder(bytes.NewReader([]byte{0x81, 0x01, 0x01}))
 	dec.Implicit = true
 	var out bool
 	err := dec.DecodeWithOptions(&out, "tag:1")
@@ -342,4 +342,18 @@ func TestImplicitDecoder(t *testing.T) {
 	if err == nil && !out {
 		t.Errorf("Bad value: %v (expected %v)", out, true)
 	}
+}
+
+type tpoint struct {
+	X int `asn1:"tag:0,implicit"`
+	Y int `asn1:"tag:1,implicit"`
+}
+
+func TestTaggedStructFields(t *testing.T) {
+	tests := []decoderTest{
+		{[]byte{0x30, 0x06, 0x80, 0x01, 0x06, 0x81, 0x01, 0x07}, true, tpoint{6,7}},
+		{[]byte{0x30, 0x06, 0x02, 0x01, 0x06, 0x02, 0x01, 0x07}, false, nil},
+	}
+	var out tpoint
+	runDecoderTests(t, tests, withValue(&out))
 }

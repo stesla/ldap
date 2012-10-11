@@ -143,7 +143,9 @@ func (dec *Decoder) decodeSequenceStruct(v reflect.Value) (err error) {
 	max := v.NumField()
 	for i := 0; i < max; i++ {
 		vv := v.Field(i)
-		err = dec.decodeField(vv, fieldOptions{})
+		vt := v.Type().Field(i)
+		opts := parseFieldOptions(vt.Tag.Get("asn1"))
+		err = dec.decodeField(vv, opts)
 		if err != nil {
 			return
 		}
