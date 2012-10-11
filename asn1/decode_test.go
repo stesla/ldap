@@ -28,17 +28,24 @@ func runDecoderTests(t *testing.T, tests []decoderTest, decode decodeFn) {
 	}
 }
 
-type tlvType struct {
-	class, tag    int
-	isConstructed bool
-}
-
 func withDecoder(fn func(*Decoder) (interface{}, error)) decodeFn {
 	return func(in interface{}) (interface{}, error) {
 		r := bytes.NewReader(in.([]byte))
 		dec := NewDecoder(r)
 		return fn(dec)
 	}
+}
+
+func withValue(out interface{}) decodeFn {
+	return withDecoder(func(dec *Decoder) (interface{}, error) {
+		err := dec.Decode(out)
+		return reflect.ValueOf(out).Elem().Interface(), err
+	})
+}
+
+type tlvType struct {
+	class, tag    int
+	isConstructed bool
 }
 
 func TestDecodeType(t *testing.T) {
@@ -87,13 +94,6 @@ func TestDecodeLength(t *testing.T) {
 		{[]byte{0xff}, false, tlvLength{}},
 	}
 	runDecoderTests(t, tests, fn)
-}
-
-func withValue(out interface{}) decodeFn {
-	return withDecoder(func(dec *Decoder) (interface{}, error) {
-		err := dec.Decode(out)
-		return reflect.ValueOf(out).Elem().Interface(), err
-	})
 }
 
 func TestDecodeRawValue(t *testing.T) {
