@@ -56,7 +56,7 @@ func withValue(out interface{}) decodeFn {
 
 func withValueOptions(out interface{}, opts map[int]string) decodeFn {
 	return withInitialValue(out, func(i int, dec *Decoder) error {
-		return dec.DecodeWithOptions(out, opts[i])
+		return dec.Decode(OptionValue{opts[i], out})
 	})
 }
 
@@ -345,7 +345,7 @@ func TestImplicitDecoder(t *testing.T) {
 	dec := NewDecoder(bytes.NewReader([]byte{0x81, 0x01, 0x01}))
 	dec.Implicit = true
 	var out bool
-	err := dec.DecodeWithOptions(&out, "tag:1")
+	err := dec.Decode(OptionValue{"tag:1", &out})
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -368,7 +368,6 @@ func TestTaggedStructFields(t *testing.T) {
 	runDecoderTests(t, tests, withValue(&out))
 }
 
-
 type opoint struct {
 	X int `asn1:"optional"`
 	Y int `asn1:"tag:0,implicit,optional"`
@@ -383,4 +382,19 @@ func TestOptionalgStructFields(t *testing.T) {
 	}
 	out := opoint{}
 	runDecoderTests(t, tests, withValue(&out))
+}
+
+func TestIndirectOptions(t *testing.T) {
+	a, b := 4, 2
+	test := []decoderTest{
+		{[]byte{0x30, 0x06, 0x80, 0x01, 0x04, 0x81, 0x01, 0x02}, true,
+			ipoint{
+				OptionValue{"tag:0,implicit", &a},
+				OptionValue{"tag:1,implicit", &b}}},
+	}
+	out := ipoint{
+		OptionValue{"tag:0,implicit", new(int)},
+		OptionValue{"tag:1,implicit", new(int)},
+	}
+	runDecoderTests(t, test, withValue(&out))
 }

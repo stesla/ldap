@@ -58,11 +58,16 @@ type RawValue struct {
 	Bytes       []byte
 }
 
+type OptionValue struct {
+	Opts  string
+	Value interface{}
+}
+
 type fieldOptions struct {
 	tag         *int
 	implicit    *bool
 	application bool
-	optional bool
+	optional    bool
 }
 
 func parseFieldOptions(s string) (ret fieldOptions) {

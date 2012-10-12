@@ -11,8 +11,8 @@ type Decoder struct {
 	Implicit bool
 	r        io.Reader
 	b        []byte
-	typeb []byte
-	lenb       []byte
+	typeb    []byte
+	lenb     []byte
 }
 
 func NewDecoder(r io.Reader) *Decoder {
@@ -21,7 +21,7 @@ func NewDecoder(r io.Reader) *Decoder {
 		b: make([]byte, 0, 10),
 		// 10 bytes ought to be long enough for any tag or length
 		typeb: make([]byte, 1, 10),
-		lenb: make([]byte, 1, 10),
+		lenb:  make([]byte, 1, 10),
 	}
 }
 
@@ -39,18 +39,14 @@ func (dec *Decoder) Read(out []byte) (n int, err error) {
 }
 
 func (dec *Decoder) Decode(out interface{}) error {
-	return dec.DecodeWithOptions(out, "")
-}
-
-func (dec *Decoder) DecodeWithOptions(out interface{}, options string) error {
-	opts := parseFieldOptions(options)
-	v := reflect.ValueOf(out).Elem()
-	return dec.decodeField(v, opts)
+	v := reflect.Indirect(reflect.ValueOf(out))
+	return dec.decodeField(v, fieldOptions{})
 }
 
 var (
-	rawValueType = reflect.TypeOf(RawValue{})
-	EOC          = fmt.Errorf("End-Of-Content")
+	optionValueType = reflect.TypeOf(OptionValue{})
+	rawValueType    = reflect.TypeOf(RawValue{})
+	EOC             = fmt.Errorf("End-Of-Content")
 )
 
 func (dec *Decoder) decodeField(v reflect.Value, opts fieldOptions) (err error) {
@@ -70,7 +66,11 @@ func (dec *Decoder) decodeField(v reflect.Value, opts fieldOptions) (err error) 
 	}
 
 	for {
-		if k := v.Kind(); k == reflect.Ptr || k == reflect.Interface {
+		if v.Type() == optionValueType {
+			vv := v.Interface().(OptionValue)
+			opts = parseFieldOptions(vv.Opts)
+			v = reflect.ValueOf(vv.Value)
+		} else if k := v.Kind(); k == reflect.Ptr || k == reflect.Interface {
 			v = v.Elem()
 		} else {
 			break
