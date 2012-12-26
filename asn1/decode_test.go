@@ -7,12 +7,12 @@ import (
 )
 
 type decoderTest struct {
-	in  interface{}
+	in  []byte
 	ok  bool
 	out interface{}
 }
 
-type decodeFn func(int, interface{}) (interface{}, error)
+type decodeFn func(int, []byte) (interface{}, error)
 
 func runDecoderTests(t *testing.T, tests []decoderTest, decode decodeFn) {
 	for i, test := range tests {
@@ -29,8 +29,8 @@ func runDecoderTests(t *testing.T, tests []decoderTest, decode decodeFn) {
 }
 
 func withDecoder(fn func(int, *Decoder) (interface{}, error)) decodeFn {
-	return func(i int, in interface{}) (interface{}, error) {
-		r := bytes.NewReader(in.([]byte))
+	return func(i int, in []byte) (interface{}, error) {
+		r := bytes.NewReader(in)
 		dec := NewDecoder(r)
 		return fn(i, dec)
 	}
