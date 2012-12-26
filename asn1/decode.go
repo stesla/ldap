@@ -7,6 +7,8 @@ import (
 	"reflect"
 )
 
+var	EOC = fmt.Errorf("End-Of-Content")
+
 type Decoder struct {
 	Implicit bool
 	r        io.Reader
@@ -42,12 +44,6 @@ func (dec *Decoder) Decode(out interface{}) error {
 	v := reflect.Indirect(reflect.ValueOf(out))
 	return dec.decodeField(v, fieldOptions{})
 }
-
-var (
-	optionValueType = reflect.TypeOf(OptionValue{})
-	rawValueType    = reflect.TypeOf(RawValue{})
-	EOC             = fmt.Errorf("End-Of-Content")
-)
 
 func (dec *Decoder) decodeField(v reflect.Value, opts fieldOptions) (err error) {
 	class, tag, constructed, err := dec.decodeType()

@@ -1,6 +1,7 @@
 package asn1
 
 import (
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -69,6 +70,11 @@ type fieldOptions struct {
 	application bool
 	optional    bool
 }
+
+var (
+	optionValueType = reflect.TypeOf(OptionValue{})
+	rawValueType    = reflect.TypeOf(RawValue{})
+)
 
 func parseFieldOptions(s string) (ret fieldOptions) {
 	for _, part := range strings.Split(s, ",") {
