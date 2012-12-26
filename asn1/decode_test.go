@@ -228,12 +228,10 @@ func TestDecodeEnumerated(t *testing.T) {
 
 func TestOtherErrors(t *testing.T) {
 	tests := []decoderTest{
-		// TODO: support implicit and explicit tagging
-		{[]byte{0x45, 0x00}, false, nil},
-		{[]byte{0x85, 0x00}, false, nil},
-		{[]byte{0xc5, 0x00}, false, nil},
+		// TODO: support ClassPrivate
+		{[]byte{0xc5, 0x01, 0x01}, false, int(1)},
 	}
-	var out interface{} = false
+	var out int
 	runDecoderTests(t, tests, withValue(&out))
 }
 
