@@ -24,15 +24,7 @@ func (enc *Encoder) Encode(in interface{}) error {
 }
 
 func (enc *Encoder) encodeField(v reflect.Value, opts fieldOptions) (err error) {
-	for {
-		if v.Type() == optionValueType {
-			vv := v.Interface().(OptionValue)
-			opts = parseFieldOptions(vv.Opts)
-			v = reflect.ValueOf(vv.Value)
-		} else {
-			break
-		}
-	}
+	v, opts = dereference(v, opts)
 
 	if err = enc.encodeType(v, opts); err != nil {
 		return

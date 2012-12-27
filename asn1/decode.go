@@ -61,17 +61,7 @@ func (dec *Decoder) decodeField(v reflect.Value, opts fieldOptions) (err error) 
 		return EOC
 	}
 
-	for {
-		if v.Type() == optionValueType {
-			vv := v.Interface().(OptionValue)
-			opts = parseFieldOptions(vv.Opts)
-			v = reflect.ValueOf(vv.Value)
-		} else if k := v.Kind(); k == reflect.Ptr || k == reflect.Interface {
-			v = v.Elem()
-		} else {
-			break
-		}
-	}
+	v, opts = dereference(v, opts)
 
 	if !v.IsValid() {
 		return StructuralError("IsValid = false")

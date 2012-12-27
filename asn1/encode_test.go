@@ -91,3 +91,11 @@ func TestEncodeEnum(t *testing.T) {
 	}
 	runEncoderTests(t, tests)
 }
+
+func TestEncodeIndirectly(t *testing.T) {
+	a, b := 4, 2
+	tests := []encoderTest{
+		{ipoint{&a, &b}, true, []byte{0x30, 0x06, 0x02, 0x01, 0x04, 0x02, 0x01, 0x02}},
+	}
+	runEncoderTests(t, tests)
+}

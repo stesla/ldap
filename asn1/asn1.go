@@ -110,3 +110,18 @@ func parseFieldOptions(s string) (ret fieldOptions) {
 	}
 	return
 }
+
+func dereference(v reflect.Value, opts fieldOptions) (reflect.Value, fieldOptions) {
+	for {
+		if v.Type() == optionValueType {
+			vv := v.Interface().(OptionValue)
+			opts = parseFieldOptions(vv.Opts)
+			v = reflect.ValueOf(vv.Value)
+		} else if k := v.Kind(); k == reflect.Ptr || k == reflect.Interface {
+			v = v.Elem()
+		} else {
+			break
+		}
+	}
+	return v, opts
+}
