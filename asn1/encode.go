@@ -27,6 +27,10 @@ func (enc *Encoder) Encode(in interface{}) error {
 func (enc *Encoder) encodeField(v reflect.Value, opts fieldOptions) (err error) {
 	v, opts = dereference(v, opts)
 
+	if opts.optional && reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
+		return
+	}
+
 	if opts.tag != nil && !(opts.implicit != nil && *opts.implicit) && !enc.Implicit {
 		v = reflect.ValueOf([]interface{}{v.Interface()})
 	}
@@ -149,7 +153,9 @@ func (enc *Encoder) encodeContent(v reflect.Value) (buf bytes.Buffer, err error)
 			}(enc.w)
 			enc.w = &buf
 			for i := 0; i < v.NumField(); i++ {
-				if err = enc.encodeField(v.Field(i), fieldOptions{}); err != nil {
+				vv := v.Field(i)
+				opts := parseFieldOptions(v.Type().Field(i).Tag.Get("asn1"))
+				if err = enc.encodeField(vv, opts); err != nil {
 					return
 				}
 			}

@@ -124,3 +124,21 @@ func TestImplicitEncoder(t *testing.T) {
 		t.Errorf("Bad result: %v (expected %v)", actual, expected)
 	}
 }
+
+func TestEncodeTaggedStructFields(t *testing.T) {
+	tests := []encoderTest{
+		{tpoint{6, 7}, true, []byte{0x30, 0x06, 0x80, 0x01, 0x06, 0x81, 0x01, 0x07}},
+	}
+	runEncoderTests(t, tests)
+}
+
+func TestEncodeOptionalStructFields(t *testing.T) {
+	tests := []encoderTest{
+		{opoint{6, 7}, true, []byte{0x30, 0x06, 0x02, 0x01, 0x06, 0x80, 0x01, 0x07}},
+		{opoint{X: 16}, true, []byte{0x30, 0x03, 0x02, 0x01, 0x10}},
+		{opoint{Y: 32}, true, []byte{0x30, 0x03, 0x80, 0x01, 0x20}},
+		{opoint{}, true, []byte{0x30, 0x00}},
+
+	}
+	runEncoderTests(t, tests)
+}
