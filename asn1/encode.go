@@ -24,6 +24,16 @@ func (enc *Encoder) Encode(in interface{}) error {
 }
 
 func (enc *Encoder) encodeField(v reflect.Value, opts fieldOptions) (err error) {
+	for {
+		if v.Type() == optionValueType {
+			vv := v.Interface().(OptionValue)
+			opts = parseFieldOptions(vv.Opts)
+			v = reflect.ValueOf(vv.Value)
+		} else {
+			break
+		}
+	}
+
 	if err = enc.encodeType(v, opts); err != nil {
 		return
 	}
@@ -56,7 +66,11 @@ func (enc *Encoder) encodeType(v reflect.Value, opts fieldOptions) (err error) {
 		case reflect.Bool:
 			tag = TagBoolean
 		case reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8, reflect.Int:
-			tag = TagInteger
+			if opts.enum {
+				tag = TagEnumerated
+			} else {
+				tag = TagInteger
+			}
 		case reflect.Slice:
 			if t.Elem().Kind() == reflect.Uint8 {
 				tag = TagOctetString

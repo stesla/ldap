@@ -84,3 +84,10 @@ func TestEncodeSequenceStruct(t *testing.T) {
 	}
 	runEncoderTests(t, tests)
 }
+
+func TestEncodeEnum(t *testing.T) {
+	tests := []encoderTest{
+		{OptionValue{"enum", MyEnum(6)}, true, []byte{0x0a, 0x01, 0x06}},
+	}
+	runEncoderTests(t, tests)
+}

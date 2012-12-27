@@ -69,6 +69,7 @@ type fieldOptions struct {
 	implicit    *bool
 	application bool
 	optional    bool
+	enum bool
 }
 
 var (
@@ -103,6 +104,8 @@ func parseFieldOptions(s string) (ret fieldOptions) {
 			}
 		case part == "optional":
 			ret.optional = true
+		case part == "enum":
+			ret.enum = true
 		}
 	}
 	return
