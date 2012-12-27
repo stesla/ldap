@@ -109,3 +109,18 @@ func TestEncodeTags(t *testing.T) {
 	}
 	runEncoderTests(t, tests)
 }
+
+func TestImplicitEncoder(t *testing.T) {
+	var out bytes.Buffer
+	enc := NewEncoder(&out)
+	enc.Implicit = true
+	err := enc.Encode(OptionValue{"tag:1", true})
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	expected := []byte{0x81, 0x01, 0xff}
+	actual := out.Bytes()
+	if err == nil && !reflect.DeepEqual(expected, actual) {
+		t.Errorf("Bad result: %v (expected %v)", actual, expected)
+	}
+}

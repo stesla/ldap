@@ -9,6 +9,7 @@ import (
 )
 
 type Encoder struct {
+	Implicit bool
 	w io.Writer
 }
 
@@ -26,7 +27,7 @@ func (enc *Encoder) Encode(in interface{}) error {
 func (enc *Encoder) encodeField(v reflect.Value, opts fieldOptions) (err error) {
 	v, opts = dereference(v, opts)
 
-	if opts.tag != nil && !(opts.implicit != nil && *opts.implicit) {
+	if opts.tag != nil && !(opts.implicit != nil && *opts.implicit) && !enc.Implicit {
 		v = reflect.ValueOf([]interface{}{v.Interface()})
 	}
 
