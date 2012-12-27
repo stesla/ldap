@@ -371,7 +371,7 @@ type opoint struct {
 	Y int `asn1:"tag:0,implicit,optional"`
 }
 
-func TestOptionalgStructFields(t *testing.T) {
+func TestOptionalStructFields(t *testing.T) {
 	tests := []decoderTest{
 		{[]byte{0x30, 0x06, 0x02, 0x01, 0x06, 0x80, 0x01, 0x07}, true, opoint{6, 7}},
 		{[]byte{0x30, 0x03, 0x02, 0x01, 0x10}, true, opoint{X: 16}},
