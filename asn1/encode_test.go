@@ -99,3 +99,13 @@ func TestEncodeIndirectly(t *testing.T) {
 	}
 	runEncoderTests(t, tests)
 }
+
+func TestEncodeTags(t *testing.T) {
+	tests := []encoderTest{
+		{OptionValue{"tag:1,implicit", true}, true, []byte{0x81, 0x01, 0xff}},
+		{OptionValue{"tag:2,implicit,application",true}, true, []byte{0x42, 0x01, 0xff}},
+		{OptionValue{"tag:3,explicit",true}, true, []byte{0xA3, 0x03, 0x01, 0x01, 0xff}},
+		{OptionValue{"tag:4",true}, true, []byte{0xA4, 0x03, 0x01, 0x01, 0xff}},
+	}
+	runEncoderTests(t, tests)
+}

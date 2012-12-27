@@ -26,6 +26,10 @@ func (enc *Encoder) Encode(in interface{}) error {
 func (enc *Encoder) encodeField(v reflect.Value, opts fieldOptions) (err error) {
 	v, opts = dereference(v, opts)
 
+	if opts.tag != nil && !(opts.implicit != nil && *opts.implicit) {
+		v = reflect.ValueOf([]interface{}{v.Interface()})
+	}
+
 	if err = enc.encodeType(v, opts); err != nil {
 		return
 	}
@@ -78,6 +82,16 @@ func (enc *Encoder) encodeType(v reflect.Value, opts fieldOptions) (err error) {
 
 	if err != nil {
 		return
+	}
+
+	if opts.tag != nil {
+		tag = *opts.tag
+
+		if opts.application {
+			class = ClassApplication
+		} else {
+			class = ClassContextSpecific
+		}
 	}
 
 	ident := uint8(class << 6 + tag)
