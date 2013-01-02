@@ -226,7 +226,7 @@ func TestDecodeEnumerated(t *testing.T) {
 	runDecoderTests(t, tests, withValue(&out))
 }
 
-func TestOtherErrors(t *testing.T) {
+func TestOtherDecoderErrors(t *testing.T) {
 	tests := []decoderTest{
 		// TODO: support ClassPrivate
 		{[]byte{0xc5, 0x01, 0x01}, false, int(1)},
@@ -310,7 +310,7 @@ type ipoint struct {
 	X, Y interface{}
 }
 
-func TestExtraIndirection(t *testing.T) {
+func TestDecodeWithExtraIndirection(t *testing.T) {
 	a, b := 4, 2
 	test := []decoderTest{
 		{[]byte{0x30, 0x06, 0x02, 0x01, 0x04, 0x02, 0x01, 0x02}, true, ipoint{&a, &b}},
@@ -319,7 +319,7 @@ func TestExtraIndirection(t *testing.T) {
 	runDecoderTests(t, test, withValue(&out))
 }
 
-func TestTagging(t *testing.T) {
+func TestDecodeTagging(t *testing.T) {
 	tests := []decoderTest{
 		{[]byte{0x01, 0x01, 0x01}, true, true},
 		{[]byte{0x81, 0x01, 0x00}, true, false},
@@ -358,7 +358,7 @@ type tpoint struct {
 	Y int `asn1:"tag:1,implicit"`
 }
 
-func TestTaggedStructFields(t *testing.T) {
+func TestDecodeTaggedStructFields(t *testing.T) {
 	tests := []decoderTest{
 		{[]byte{0x30, 0x06, 0x80, 0x01, 0x06, 0x81, 0x01, 0x07}, true, tpoint{6, 7}},
 		{[]byte{0x30, 0x06, 0x02, 0x01, 0x06, 0x02, 0x01, 0x07}, false, nil},
@@ -372,7 +372,7 @@ type opoint struct {
 	Y int `asn1:"tag:0,implicit,optional"`
 }
 
-func TestOptionalStructFields(t *testing.T) {
+func TestDecodeOptionalStructFields(t *testing.T) {
 	tests := []decoderTest{
 		{[]byte{0x30, 0x06, 0x02, 0x01, 0x06, 0x80, 0x01, 0x07}, true, opoint{6, 7}},
 		{[]byte{0x30, 0x03, 0x02, 0x01, 0x10}, true, opoint{X: 16}},
@@ -383,7 +383,7 @@ func TestOptionalStructFields(t *testing.T) {
 	runDecoderTests(t, tests, withValue(&out))
 }
 
-func TestIndirectOptions(t *testing.T) {
+func TestDecodeIndirectOptions(t *testing.T) {
 	a, b := 4, 2
 	test := []decoderTest{
 		{[]byte{0x30, 0x06, 0x80, 0x01, 0x04, 0x81, 0x01, 0x02}, true,
@@ -406,7 +406,7 @@ type inner struct {
 	Enum MyEnum
 }
 
-func TestStructOptionStruct(t *testing.T) {
+func TestDecodeStructOptionStruct(t *testing.T) {
 	dec := NewDecoder(bytes.NewReader([]byte{0x30, 0x05, 0x61, 0x03, 0x0a, 0x01, 0x2a}))
 	dec.Implicit = true
 	out := outer{OptionValue{"application,tag:1", new(inner)}}
