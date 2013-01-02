@@ -10,18 +10,27 @@ import (
 
 type Encoder struct {
 	Implicit bool
+	b *bytes.Buffer
 	w io.Writer
+	ww io.Writer
 }
 
 func NewEncoder(w io.Writer) *Encoder {
+	buf := new(bytes.Buffer)
 	return &Encoder{
-		w: w,
+		b: buf,
+		w: buf,
+		ww: w,
 	}
 }
 
-func (enc *Encoder) Encode(in interface{}) error {
+func (enc *Encoder) Encode(in interface{}) (err error) {
 	v := reflect.Indirect(reflect.ValueOf(in))
-	return enc.encodeField(v, fieldOptions{})
+	if err = enc.encodeField(v, fieldOptions{}); err != nil {
+		return
+	}
+	_, err = enc.b.WriteTo(enc.ww)
+	return
 }
 
 func (enc *Encoder) encodeField(v reflect.Value, opts fieldOptions) (err error) {
