@@ -418,3 +418,16 @@ func TestDecodeStructOptionStruct(t *testing.T) {
 		t.Errorf("Bad value: %v (expected %v)", out, true)
 	}
 }
+
+func TestDecodeSet(t *testing.T) {
+	tests := []decoderTest{
+		{[]byte{0x31, 0x00}, true, []int{}},
+		{[]byte{0x31, 0x06, 0x02, 0x01, 0x06, 0x02, 0x01, 0x07}, true, []int{6,7}},
+	}
+	opts := map[int]string{
+		0: "set",
+		1: "set",
+	}
+	var out []int
+	runDecoderTests(t, tests, withValueOptions(&out, opts))
+}

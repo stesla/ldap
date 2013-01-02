@@ -82,7 +82,9 @@ func (enc *Encoder) encodeType(v reflect.Value, opts fieldOptions) (err error) {
 				tag = TagInteger
 			}
 		case reflect.Slice:
-			if t.Elem().Kind() == reflect.Uint8 {
+			if opts.set {
+				tag, constructed = TagSet, true
+			} else if t.Elem().Kind() == reflect.Uint8 {
 				tag = TagOctetString
 			} else {
 				tag, constructed = TagSequence, true
@@ -120,11 +122,11 @@ func (enc *Encoder) encodeContent(v reflect.Value) (buf bytes.Buffer, err error)
 	t := v.Type()
 	switch t {
 	case rawValueType:
-		buf.Write(v.Interface().(RawValue).Bytes)
+		buf.Write(v.FieldByName("Bytes").Bytes())
 	default:
 		switch t.Kind() {
 		case reflect.Bool:
-			if v.Interface().(bool) {
+			if v.Bool() {
 				buf.WriteByte(0xff)
 			} else {
 				buf.WriteByte(0x00)

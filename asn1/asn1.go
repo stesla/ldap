@@ -29,7 +29,7 @@ const ( // ASN.1 Universal Tags
 	// TagUTF8String       = 0x0c
 	// TagRelativeOID      = 0x0d
 	TagSequence = 0x10
-	// TagSet              = 0x11
+	TagSet              = 0x11
 	// TagNumericString    = 0x12
 	// TagPrintableString  = 0x13
 	// TagT61String        = 0x14
@@ -70,6 +70,7 @@ type fieldOptions struct {
 	application bool
 	optional    bool
 	enum bool
+	set bool
 }
 
 var (
@@ -106,6 +107,8 @@ func parseFieldOptions(s string) (ret fieldOptions) {
 			ret.optional = true
 		case part == "enum":
 			ret.enum = true
+		case part == "set":
+			ret.set = true
 		}
 	}
 	return

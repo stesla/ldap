@@ -138,7 +138,14 @@ func TestEncodeOptionalStructFields(t *testing.T) {
 		{opoint{X: 16}, true, []byte{0x30, 0x03, 0x02, 0x01, 0x10}},
 		{opoint{Y: 32}, true, []byte{0x30, 0x03, 0x80, 0x01, 0x20}},
 		{opoint{}, true, []byte{0x30, 0x00}},
+	}
+	runEncoderTests(t, tests)
+}
 
+func TestEncodeSet(t *testing.T) {
+	tests := []encoderTest{
+		{OptionValue{"set", []int{}}, true, []byte{0x31, 0x00}},
+		{OptionValue{"set", []int{6,7}}, true, []byte{0x31, 0x06, 0x02, 0x01, 0x06, 0x02, 0x01, 0x07}},
 	}
 	runEncoderTests(t, tests)
 }
