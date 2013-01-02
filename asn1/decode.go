@@ -108,7 +108,7 @@ func (dec *Decoder) decodeConstructed(v reflect.Value, opts fieldOptions) (err e
 		dec.r = bytes.NewReader(b)
 	}
 
-	if opts.tag != nil && (opts.implicit == nil || !*opts.implicit) {
+	if opts.tag != nil && (opts.implicit == nil || !*opts.implicit) && !dec.Implicit {
 		err = dec.decodeField(v, fieldOptions{})
 		if err != nil {
 			return

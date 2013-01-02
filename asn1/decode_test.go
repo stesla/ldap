@@ -334,6 +334,7 @@ func TestTagging(t *testing.T) {
 		3: "tag:3,explicit",
 		4: "tag:4",
 		5: "tag:5",
+		6: "tag:1,application",
 	}
 	var out bool
 	runDecoderTests(t, tests, withValueOptions(&out, opts))
@@ -395,4 +396,25 @@ func TestIndirectOptions(t *testing.T) {
 		OptionValue{"tag:1,implicit", new(int)},
 	}
 	runDecoderTests(t, test, withValue(&out))
+}
+
+type outer struct {
+	Inner interface{}
+}
+
+type inner struct {
+	Enum MyEnum
+}
+
+func TestStructOptionStruct(t *testing.T) {
+	dec := NewDecoder(bytes.NewReader([]byte{0x30, 0x05, 0x61, 0x03, 0x0a, 0x01, 0x2a}))
+	dec.Implicit = true
+	out := outer{OptionValue{"application,tag:1", new(inner)}}
+	err := dec.Decode(&out)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	if err == nil && out.Inner.(OptionValue).Value.(*inner).Enum != MyEnum(42) {
+		t.Errorf("Bad value: %v (expected %v)", out, true)
+	}
 }
