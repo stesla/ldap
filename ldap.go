@@ -3,9 +3,9 @@ package ldap
 import (
 	// "bytes"
 	"fmt"
+	"github.com/stesla/ldap/asn1"
 	"net"
 	"sync"
-	"github.com/stesla/ldap/asn1"
 )
 
 type Conn interface {
@@ -35,31 +35,31 @@ func newConn(tcp net.Conn) *conn {
 }
 
 type ldapMessage struct {
-	MessageId int
+	MessageId  int
 	ProtocolOp interface{}
-	Controls []interface{} `asn1:"tag:0,optional"`
+	Controls   []interface{} `asn1:"tag:0,optional"`
 }
 
 type ldapResultCode int16
 
 const (
-    Success ldapResultCode = 0
-    SnappropriateAuthentication ldapResultCode = 48
-    SnvalidCredentials ldapResultCode = 49
-    SnsufficientAccessRights ldapResultCode = 59
+	Success                     ldapResultCode = 0
+	SnappropriateAuthentication ldapResultCode = 48
+	SnvalidCredentials          ldapResultCode = 49
+	SnsufficientAccessRights    ldapResultCode = 59
 )
 
 type ldapResult struct {
 	ResultCode ldapResultCode
-	MatchedDN []byte
-	Message []byte
-	Referral []interface{} `asn1:"tag:3,optional"`
+	MatchedDN  []byte
+	Message    []byte
+	Referral   []interface{} `asn1:"tag:3,optional"`
 }
 
 type bindRequest struct {
 	Version int8
-	Name []byte
-	Auth interface{}
+	Name    []byte
+	Auth    interface{}
 }
 
 func (l *conn) Bind(user, password string) (err error) {
@@ -69,7 +69,7 @@ func (l *conn) Bind(user, password string) (err error) {
 			"application,tag:0",
 			bindRequest{
 				Version: 3,
-				Name: []byte(user),
+				Name:    []byte(user),
 				// TODO: Support SASL
 				Auth: simpleAuth(password),
 			},
@@ -111,7 +111,7 @@ func (l *conn) Unbind() error {
 			"application,tag:2",
 			asn1.RawValue{
 				Class: asn1.ClassUniversal,
-				Tag: asn1.TagNull,
+				Tag:   asn1.TagNull,
 			},
 		},
 	}
@@ -127,7 +127,7 @@ func (l *conn) Unbind() error {
 
 type sequence struct {
 	next int
-	l sync.Mutex
+	l    sync.Mutex
 }
 
 func (gen *sequence) Next() (id int) {

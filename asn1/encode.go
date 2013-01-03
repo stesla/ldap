@@ -1,25 +1,25 @@
 package asn1
 
 import (
-	"encoding/binary"
 	"bytes"
+	"encoding/binary"
 	"fmt"
-	"reflect"
 	"io"
+	"reflect"
 )
 
 type Encoder struct {
 	Implicit bool
-	b *bytes.Buffer
-	w io.Writer
-	ww io.Writer
+	b        *bytes.Buffer
+	w        io.Writer
+	ww       io.Writer
 }
 
 func NewEncoder(w io.Writer) *Encoder {
 	buf := new(bytes.Buffer)
 	return &Encoder{
-		b: buf,
-		w: buf,
+		b:  buf,
+		w:  buf,
 		ww: w,
 	}
 }
@@ -110,7 +110,7 @@ func (enc *Encoder) encodeType(v reflect.Value, opts fieldOptions) (err error) {
 		}
 	}
 
-	ident := uint8(class << 6 + tag)
+	ident := uint8(class<<6 + tag)
 	if constructed {
 		ident += 0x20
 	}

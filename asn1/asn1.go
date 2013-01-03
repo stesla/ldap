@@ -29,7 +29,7 @@ const ( // ASN.1 Universal Tags
 	// TagUTF8String       = 0x0c
 	// TagRelativeOID      = 0x0d
 	TagSequence = 0x10
-	TagSet              = 0x11
+	TagSet      = 0x11
 	// TagNumericString    = 0x12
 	// TagPrintableString  = 0x13
 	// TagT61String        = 0x14
@@ -69,8 +69,8 @@ type fieldOptions struct {
 	implicit    *bool
 	application bool
 	optional    bool
-	enum bool
-	set bool
+	enum        bool
+	set         bool
 }
 
 var (

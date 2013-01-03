@@ -7,8 +7,8 @@ import (
 )
 
 type encoderTest struct {
-	in interface{}
-	ok bool
+	in  interface{}
+	ok  bool
 	out []byte
 }
 
@@ -77,7 +77,7 @@ func TestEncodeByteSlice(t *testing.T) {
 
 func TestEncodeSequenceStruct(t *testing.T) {
 	tests := []encoderTest{
-		{namedPoint{point{6,7}, []byte("bar")}, true,
+		{namedPoint{point{6, 7}, []byte("bar")}, true,
 			[]byte{0x30, 0x0d,
 				0x30, 0x06, 0x02, 0x01, 0x06, 0x02, 0x01, 0x07, // point{6, 7}
 				0x04, 0x03, 'b', 'a', 'r'}},
@@ -103,9 +103,9 @@ func TestEncodeIndirectly(t *testing.T) {
 func TestEncodeTags(t *testing.T) {
 	tests := []encoderTest{
 		{OptionValue{"tag:1,implicit", true}, true, []byte{0x81, 0x01, 0xff}},
-		{OptionValue{"tag:2,implicit,application",true}, true, []byte{0x42, 0x01, 0xff}},
-		{OptionValue{"tag:3,explicit",true}, true, []byte{0xA3, 0x03, 0x01, 0x01, 0xff}},
-		{OptionValue{"tag:4",true}, true, []byte{0xA4, 0x03, 0x01, 0x01, 0xff}},
+		{OptionValue{"tag:2,implicit,application", true}, true, []byte{0x42, 0x01, 0xff}},
+		{OptionValue{"tag:3,explicit", true}, true, []byte{0xa3, 0x03, 0x01, 0x01, 0xff}},
+		{OptionValue{"tag:4", true}, true, []byte{0xa4, 0x03, 0x01, 0x01, 0xff}},
 	}
 	runEncoderTests(t, tests)
 }
@@ -145,7 +145,7 @@ func TestEncodeOptionalStructFields(t *testing.T) {
 func TestEncodeSet(t *testing.T) {
 	tests := []encoderTest{
 		{OptionValue{"set", []int{}}, true, []byte{0x31, 0x00}},
-		{OptionValue{"set", []int{6,7}}, true, []byte{0x31, 0x06, 0x02, 0x01, 0x06, 0x02, 0x01, 0x07}},
+		{OptionValue{"set", []int{6, 7}}, true, []byte{0x31, 0x06, 0x02, 0x01, 0x06, 0x02, 0x01, 0x07}},
 	}
 	runEncoderTests(t, tests)
 }

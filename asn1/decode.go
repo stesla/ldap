@@ -7,7 +7,7 @@ import (
 	"reflect"
 )
 
-var	EOC = fmt.Errorf("End-Of-Content")
+var EOC = fmt.Errorf("End-Of-Content")
 
 type Decoder struct {
 	Implicit bool
@@ -319,7 +319,7 @@ func (dec *Decoder) checkTag(class, tag int, constructed bool, opts fieldOptions
 			ok = !constructed && reflect.Int <= v.Kind() && v.Kind() <= reflect.Int64
 		case TagSet, TagSequence:
 			okKind := v.Kind() == reflect.Slice || v.Kind() == reflect.Struct
-				ok = constructed && okKind && (opts.set || tag == TagSequence)
+			ok = constructed && okKind && (opts.set || tag == TagSequence)
 		default:
 			ok = false
 		}
@@ -328,7 +328,7 @@ func (dec *Decoder) checkTag(class, tag int, constructed bool, opts fieldOptions
 	if !ok {
 		err = StructuralError(
 			fmt.Sprintf("tag mismatch (class = %#x, tag = %#x, constructed = %t, type = %v)",
-			class, tag, constructed, v.Type()))
+				class, tag, constructed, v.Type()))
 	}
 
 	return

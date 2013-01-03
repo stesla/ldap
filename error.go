@@ -6,5 +6,4 @@ type LDAPError struct {
 
 func (e LDAPError) Error() string { return "LDAP error: " + e.Msg }
 
-var notimpl = LDAPError{ "Not Implemented" }
-
+var notimpl = LDAPError{"Not Implemented"}
