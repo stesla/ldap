@@ -53,11 +53,14 @@ func (enc *Encoder) encodeField(v reflect.Value, opts fieldOptions) (err error) 
 		return
 	}
 
-	// TODO: Support extended length
-	length := uint8(buf.Len())
-	if _, err = enc.w.Write([]byte{length}); err != nil {
-		return
+	if !opts.components {
+		// TODO: Support extended length
+		length := uint8(buf.Len())
+		if _, err = enc.w.Write([]byte{length}); err != nil {
+			return
+		}
 	}
+
 	_, err = buf.WriteTo(enc.w)
 	return
 }
@@ -94,6 +97,12 @@ func (enc *Encoder) encodeType(v reflect.Value, opts fieldOptions) (err error) {
 		default:
 			err = fmt.Errorf("Type not supported: %v", v.Type())
 		}
+	}
+
+	if opts.components && constructed {
+		return
+	} else if opts.components {
+		return fmt.Errorf("Cannot encode COMPONENTS OF primitive value")
 	}
 
 	if err != nil {

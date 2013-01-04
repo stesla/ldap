@@ -71,6 +71,7 @@ type fieldOptions struct {
 	optional    bool
 	enum        bool
 	set         bool
+	components  bool
 }
 
 var (
@@ -109,6 +110,8 @@ func parseFieldOptions(s string) (ret fieldOptions) {
 			ret.enum = true
 		case part == "set":
 			ret.set = true
+		case part == "components":
+			ret.components = true
 		}
 	}
 	return

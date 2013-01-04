@@ -120,7 +120,11 @@ func (dec *Decoder) decodeConstructed(v reflect.Value, opts fieldOptions) (err e
 	case reflect.Slice:
 		return dec.decodeSequenceSlice(v)
 	case reflect.Struct:
-		return dec.decodeSequenceStruct(v)
+		if err = dec.decodeSequenceStruct(v); err != nil {
+			return err
+		} else {
+			return dec.decodeEndOfContent()
+		}
 	}
 	return StructuralError(fmt.Sprintf("Unsupported Type: %v", v.Type()))
 }
@@ -148,7 +152,12 @@ func (dec *Decoder) decodeSequenceStruct(v reflect.Value) (err error) {
 		vv := v.Field(i)
 		vt := v.Type().Field(i)
 		opts := parseFieldOptions(vt.Tag.Get("asn1"))
-		err = dec.decodeField(vv, opts)
+		vv, opts = dereference(vv, opts)
+		if opts.components && vv.Kind() == reflect.Struct {
+			err = dec.decodeSequenceStruct(vv)
+		} else {
+			err = dec.decodeField(vv, opts)
+		}
 		if err != nil {
 			if !opts.optional {
 				return
@@ -162,7 +171,6 @@ func (dec *Decoder) decodeSequenceStruct(v reflect.Value) (err error) {
 			err = nil
 		}
 	}
-	err = dec.decodeEndOfContent()
 	return
 }
 
@@ -171,7 +179,7 @@ func (dec *Decoder) decodeEndOfContent() (err error) {
 	if err == EOC {
 		err = nil
 	} else if err == nil {
-		err = StructuralError("ran out of struct fields before end-of-content")
+		err = StructuralError("ran out of data locations before end-of-content")
 	}
 	return
 }

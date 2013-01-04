@@ -149,3 +149,16 @@ func TestEncodeSet(t *testing.T) {
 	}
 	runEncoderTests(t, tests)
 }
+
+type line struct {
+	A point `asn1:"components"`
+	B point `asn1:"components"`
+}
+
+func TestEncodeComponentsOf(t *testing.T) {
+	tests := []encoderTest{
+		{line{point{1, 2}, point{3, 4}}, true,
+			[]byte{0x30, 0x0c, 0x02, 0x01, 0x01, 0x02, 0x01, 0x02, 0x02, 0x01, 0x03, 0x02, 0x01, 0x04}},
+	}
+	runEncoderTests(t, tests)
+}
