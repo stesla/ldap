@@ -60,11 +60,6 @@ func withValueOptions(out interface{}, opts map[int]string) decodeFn {
 	})
 }
 
-type tlvType struct {
-	class, tag    int
-	isConstructed bool
-}
-
 func TestDecodeType(t *testing.T) {
 	fn := withDecoder(func(i int, dec *Decoder) (interface{}, error) {
 		class, tag, isConstructed, err := dec.decodeType()
@@ -87,11 +82,6 @@ func TestDecodeType(t *testing.T) {
 		{[]byte{0x1f, 0x81, 0x80, 0x01}, true, tlvType{0, 0x4001, false}},
 	}
 	runDecoderTests(t, tests, fn)
-}
-
-type tlvLength struct {
-	length       int
-	isIndefinite bool
 }
 
 func TestDecodeLength(t *testing.T) {
@@ -260,15 +250,6 @@ func TestDecodeNestedSequenceSlice(t *testing.T) {
 	runDecoderTests(t, tests, withValue(&out))
 }
 
-type point struct {
-	X, Y int
-}
-
-type namedPoint struct {
-	Point point
-	Name  []byte
-}
-
 func TestDecodeSequenceStruct(t *testing.T) {
 	tests := []decoderTest{
 		{[]byte{0x30, 0x0d,
@@ -304,10 +285,6 @@ func TestDecodeSequenceStruct(t *testing.T) {
 	}
 	var out namedPoint
 	runDecoderTests(t, tests, withValue(&out))
-}
-
-type ipoint struct {
-	X, Y interface{}
 }
 
 func TestDecodeWithExtraIndirection(t *testing.T) {
@@ -353,11 +330,6 @@ func TestImplicitDecoder(t *testing.T) {
 	}
 }
 
-type tpoint struct {
-	X int `asn1:"tag:0,implicit"`
-	Y int `asn1:"tag:1,implicit"`
-}
-
 func TestDecodeTaggedStructFields(t *testing.T) {
 	tests := []decoderTest{
 		{[]byte{0x30, 0x06, 0x80, 0x01, 0x06, 0x81, 0x01, 0x07}, true, tpoint{6, 7}},
@@ -365,11 +337,6 @@ func TestDecodeTaggedStructFields(t *testing.T) {
 	}
 	var out tpoint
 	runDecoderTests(t, tests, withValue(&out))
-}
-
-type opoint struct {
-	X int `asn1:"optional"`
-	Y int `asn1:"tag:0,implicit,optional"`
 }
 
 func TestDecodeOptionalStructFields(t *testing.T) {
@@ -396,14 +363,6 @@ func TestDecodeIndirectOptions(t *testing.T) {
 		OptionValue{"tag:1,implicit", new(int)},
 	}
 	runDecoderTests(t, test, withValue(&out))
-}
-
-type outer struct {
-	Inner interface{}
-}
-
-type inner struct {
-	Enum MyEnum
 }
 
 func TestDecodeStructOptionStruct(t *testing.T) {
