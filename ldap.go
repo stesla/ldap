@@ -12,6 +12,7 @@ type Conn interface {
 	net.Conn
 	Bind(user, password string) error
 	Unbind() error
+	Search(req SearchRequest) ([]SearchResult, error)
 }
 
 // TODO: Implement TLS
@@ -136,4 +137,50 @@ func (gen *sequence) Next() (id int) {
 	id = gen.next
 	gen.next++
 	return
+}
+
+type SearchRequest struct {
+	BaseObject []byte
+	Scope SearchScope `asn1:"enum"`
+	Deref DerefAliases `asn1:"enum"`
+	SizeLimit int
+	TimeLimit int
+	TypesOnly bool
+	Filter
+	Attributes [][]byte
+}
+
+type SearchScope int
+
+const (
+	BaseObject SearchScope = 0
+	SingleLevel SearchScope = 1
+	WholeSubtree SearchScope = 2
+)
+
+type DerefAliases int
+
+const (
+	NeverDerefAliases DerefAliases = 0
+	DerefInSearching DerefAliases = 1
+	DerefFindingBaseObj DerefAliases = 2
+	DerefAlways DerefAliases = 3
+)
+
+type SearchResult struct {
+}
+
+func (l *conn) Search(req SearchRequest) ([]SearchResult, error) {
+	msg := ldapMessage{
+		MessageId: l.id.Next(),
+		ProtocolOp: asn1.OptionValue{"application,tag:3", req},
+	}
+
+	enc := asn1.NewEncoder(l)
+	enc.Implicit = true
+	if err := enc.Encode(msg); err != nil {
+		return nil, fmt.Errorf("Encode: %v", err)
+	}
+
+	return nil, nil
 }
