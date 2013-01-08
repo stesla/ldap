@@ -1,7 +1,7 @@
 package ldap
 
 import (
-	// "bytes"
+	"bytes"
 	"fmt"
 	"github.com/stesla/ldap/asn1"
 	"net"
@@ -168,6 +168,8 @@ const (
 )
 
 type SearchResult struct {
+	DN string
+	Attributes map[string][]string
 }
 
 func (l *conn) Search(req SearchRequest) ([]SearchResult, error) {
@@ -182,5 +184,54 @@ func (l *conn) Search(req SearchRequest) ([]SearchResult, error) {
 		return nil, fmt.Errorf("Encode: %v", err)
 	}
 
-	return nil, nil
+	dec := asn1.NewDecoder(l)
+	dec.Implicit = true
+
+	results := []SearchResult{}
+
+loop:
+	for {
+		var raw asn1.RawValue
+		resp := ldapMessage{ProtocolOp: &raw}
+		if err := dec.Decode(&resp); err != nil {
+			return nil, fmt.Errorf("Decode Envelope: %v", err)
+		}
+		rdec := asn1.NewDecoder(bytes.NewBuffer(raw.RawBytes))
+		rdec.Implicit = true
+		switch raw.Tag {
+		case 4:
+			var r struct {
+				Name []byte
+				Attributes []struct {
+					Type []byte
+					Values [][]byte `asn1:"set"`
+				}
+			}
+			if err := rdec.Decode(asn1.OptionValue{"application,tag:4", &r}); err != nil {
+				return nil, fmt.Errorf("Decode SearchResult: %v", err)
+			}
+			result := SearchResult{string(r.Name), make(map[string][]string)}
+			for _, a := range r.Attributes {
+				vals := []string{}
+				for _, v := range a.Values {
+					vals = append(vals, string(v))
+				}
+				result.Attributes[string(a.Type)] = vals
+			}
+			results = append(results, result)
+		case 5:	 // SearchResultDone
+			var r ldapResult
+			if err := rdec.Decode(asn1.OptionValue{"application,tag:5", &r}); err != nil {
+				return nil, fmt.Errorf("Decode SearchResultDone: %v", err)
+			}
+			if r.ResultCode != Success {
+				return nil, fmt.Errorf("ResultCode = %d", r.ResultCode)
+			}
+			break loop
+		case 19: // SearchResultReference
+			// TODO
+		}
+	}
+
+	return results, nil
 }
