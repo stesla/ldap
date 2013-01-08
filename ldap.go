@@ -141,11 +141,11 @@ func (gen *sequence) Next() (id int) {
 
 type SearchRequest struct {
 	BaseObject []byte
-	Scope SearchScope `asn1:"enum"`
-	Deref DerefAliases `asn1:"enum"`
-	SizeLimit int
-	TimeLimit int
-	TypesOnly bool
+	Scope      SearchScope  `asn1:"enum"`
+	Deref      DerefAliases `asn1:"enum"`
+	SizeLimit  int
+	TimeLimit  int
+	TypesOnly  bool
 	Filter
 	Attributes [][]byte
 }
@@ -153,28 +153,28 @@ type SearchRequest struct {
 type SearchScope int
 
 const (
-	BaseObject SearchScope = 0
-	SingleLevel SearchScope = 1
+	BaseObject   SearchScope = 0
+	SingleLevel  SearchScope = 1
 	WholeSubtree SearchScope = 2
 )
 
 type DerefAliases int
 
 const (
-	NeverDerefAliases DerefAliases = 0
-	DerefInSearching DerefAliases = 1
+	NeverDerefAliases   DerefAliases = 0
+	DerefInSearching    DerefAliases = 1
 	DerefFindingBaseObj DerefAliases = 2
-	DerefAlways DerefAliases = 3
+	DerefAlways         DerefAliases = 3
 )
 
 type SearchResult struct {
-	DN string
+	DN         string
 	Attributes map[string][]string
 }
 
 func (l *conn) Search(req SearchRequest) ([]SearchResult, error) {
 	msg := ldapMessage{
-		MessageId: l.id.Next(),
+		MessageId:  l.id.Next(),
 		ProtocolOp: asn1.OptionValue{"application,tag:3", req},
 	}
 
@@ -201,9 +201,9 @@ loop:
 		switch raw.Tag {
 		case 4:
 			var r struct {
-				Name []byte
+				Name       []byte
 				Attributes []struct {
-					Type []byte
+					Type   []byte
 					Values [][]byte `asn1:"set"`
 				}
 			}
@@ -219,7 +219,7 @@ loop:
 				result.Attributes[string(a.Type)] = vals
 			}
 			results = append(results, result)
-		case 5:	 // SearchResultDone
+		case 5: // SearchResultDone
 			var r ldapResult
 			if err := rdec.Decode(asn1.OptionValue{"application,tag:5", &r}); err != nil {
 				return nil, fmt.Errorf("Decode SearchResultDone: %v", err)

@@ -4,7 +4,7 @@ import (
 	"github.com/stesla/ldap/asn1"
 )
 
-type Filter interface {}
+type Filter interface{}
 
 func And(filters ...Filter) Filter {
 	return asn1.OptionValue{"tag:0,set", filters}
@@ -23,15 +23,15 @@ type attributeValueAssertion struct {
 }
 
 func Equals(attribute, value string) Filter {
-	val := attributeValueAssertion{[]byte(attribute),	[]byte(value)}
+	val := attributeValueAssertion{[]byte(attribute), []byte(value)}
 	return asn1.OptionValue{"tag:3", val}
 }
 
 type matchingRuleAssertion struct {
 	MatchingRule []byte `asn1:"tag:1,optional"`
-	Type []byte `asn1:"tag:2,optional"`
-	MatchValue []byte `asn1:"tag:3"`
-	DnAttributes bool `asn1:"tag:4"`
+	Type         []byte `asn1:"tag:2,optional"`
+	MatchValue   []byte `asn1:"tag:3"`
+	DnAttributes bool   `asn1:"tag:4"`
 }
 
 func Matches(rule, attribute, value string) Filter {

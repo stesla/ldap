@@ -133,7 +133,7 @@ func (enc *Encoder) encodeLength(length int) (err error) {
 	}
 
 	if len(bs) > 1 || bs[0]&0x80 == 0x80 {
-		if _, err = enc.w.Write([]byte{uint8(0x80|len(bs))}); err != nil {
+		if _, err = enc.w.Write([]byte{uint8(0x80 | len(bs))}); err != nil {
 			return err
 		}
 	}

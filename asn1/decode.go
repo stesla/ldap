@@ -320,7 +320,7 @@ func (dec *Decoder) decodeLength() (length int, isIndefinite bool, err error) {
 		if err != nil {
 			return
 		}
-		for _, b := range dec.lenb[1:1+width] {
+		for _, b := range dec.lenb[1 : 1+width] {
 			length = length<<8 | int(b)
 		}
 	}
