@@ -157,3 +157,19 @@ func TestEncodeComponentsOf(t *testing.T) {
 	}
 	runEncoderTests(t, tests)
 }
+
+func TestEncodeLongLength(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+	err := enc.Encode(RawValue{Bytes: make([]byte, 128)})
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	// We know the tag gets encoded right, so we won't look at that,
+	// we'll just look at the length and one byte after.
+	expected := []byte{0x81, 0x80, 0}
+	actual := buf.Bytes()[1:4]
+	if err == nil && !reflect.DeepEqual(expected, actual) {
+		t.Errorf("Bad result: %v (expected %v)", actual, expected)
+	}
+}

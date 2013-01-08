@@ -54,9 +54,7 @@ func (enc *Encoder) encodeField(v reflect.Value, opts fieldOptions) (err error) 
 	}
 
 	if !opts.components {
-		// TODO: Support extended length
-		length := uint8(buf.Len())
-		if _, err = enc.w.Write([]byte{length}); err != nil {
+		if err = enc.encodeLength(buf.Len()); err != nil {
 			return
 		}
 	}
@@ -127,6 +125,23 @@ func (enc *Encoder) encodeType(v reflect.Value, opts fieldOptions) (err error) {
 	return
 }
 
+func (enc *Encoder) encodeLength(length int) (err error) {
+	var bs []byte
+
+	if bs, err = encodeInt64(int64(length)); err != nil {
+		return err
+	}
+
+	if len(bs) > 1 || bs[0]&0x80 == 0x80 {
+		if _, err = enc.w.Write([]byte{uint8(0x80|len(bs))}); err != nil {
+			return err
+		}
+	}
+
+	_, err = enc.w.Write(bs)
+	return err
+}
+
 func (enc *Encoder) encodeContent(v reflect.Value) (buf bytes.Buffer, err error) {
 	t := v.Type()
 	switch t {
@@ -141,17 +156,11 @@ func (enc *Encoder) encodeContent(v reflect.Value) (buf bytes.Buffer, err error)
 				buf.WriteByte(0x00)
 			}
 		case reflect.Int64, reflect.Int32, reflect.Int16, reflect.Int8, reflect.Int:
-			err = binary.Write(&buf, binary.BigEndian, v.Int())
-			// binary.Write always writes out all 8 bytes for an int64. On
-			// the other hand, DER-encoding requires we use the shortest
-			// possible encoding. So, we trim off all the leading
-			// zeroes. If the last byte in the slice is a zero, then we
-			// must be encoding the number zero, so we leave it.
-			bs := buf.Bytes()
-			for len(bs) > 1 && bs[0] == 0 {
-				bs = bs[1:]
+			var bs []byte
+			bs, err = encodeInt64(v.Int())
+			if err != nil {
+				return
 			}
-			buf.Reset()
 			buf.Write(bs)
 		case reflect.Slice:
 			if t.Elem().Kind() == reflect.Uint8 {
@@ -182,4 +191,22 @@ func (enc *Encoder) encodeContent(v reflect.Value) (buf bytes.Buffer, err error)
 		}
 	}
 	return
+}
+
+func encodeInt64(i int64) ([]byte, error) {
+	var buf bytes.Buffer
+	err := binary.Write(&buf, binary.BigEndian, i)
+	if err != nil {
+		return nil, err
+	}
+	// binary.Write always writes out all 8 bytes for an int64. On
+	// the other hand, DER-encoding requires we use the shortest
+	// possible encoding. So, we trim off all the leading
+	// zeroes. If the last byte in the slice is a zero, then we
+	// must be encoding the number zero, so we leave it.
+	bs := buf.Bytes()
+	for len(bs) > 1 && bs[0] == 0 {
+		bs = bs[1:]
+	}
+	return bs, nil
 }
