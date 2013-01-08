@@ -45,9 +45,9 @@ type ldapResultCode int16
 
 const (
 	Success                     ldapResultCode = 0
-	SnappropriateAuthentication ldapResultCode = 48
-	SnvalidCredentials          ldapResultCode = 49
-	SnsufficientAccessRights    ldapResultCode = 59
+	InappropriateAuthentication ldapResultCode = 48
+	InvalidCredentials          ldapResultCode = 49
+	InsufficientAccessRights    ldapResultCode = 59
 )
 
 type ldapResult struct {
