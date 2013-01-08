@@ -70,13 +70,7 @@ func (dec *Decoder) decodeField(v reflect.Value, opts fieldOptions) (err error) 
 	}
 
 	if v.Type() == rawValueType {
-		raw := RawValue{Class: class, Tag: tag, Constructed: constructed}
-		raw.Bytes, err = dec.decodeLengthAndContent()
-		if err != nil {
-			return
-		}
-		v.Set(reflect.ValueOf(raw))
-		return
+		return dec.decodeRawValue(v, class, tag, constructed)
 	}
 
 	err = dec.checkTag(class, tag, constructed, opts, v)
@@ -88,6 +82,28 @@ func (dec *Decoder) decodeField(v reflect.Value, opts fieldOptions) (err error) 
 		return dec.decodeConstructed(v, opts)
 	}
 	return dec.decodePrimitive(v)
+}
+
+func (dec *Decoder) decodeRawValue(v reflect.Value, class, tag int, constructed bool) error {
+	raw := RawValue{Class: class, Tag: tag, Constructed: constructed}
+
+	bs, indefinite, err := dec.decodeLengthAndContent()
+	if err != nil {
+		return err
+	}
+	raw.Bytes = bs
+
+	var buf bytes.Buffer
+	buf.Write(dec.typeb)
+	buf.Write(dec.lenb)
+	buf.Write(raw.Bytes)
+	if indefinite {
+		buf.Write([]byte{0, 0})
+	}
+	raw.RawBytes = buf.Bytes()
+
+	v.Set(reflect.ValueOf(raw))
+	return nil
 }
 
 func (dec *Decoder) decodeConstructed(v reflect.Value, opts fieldOptions) (err error) {
@@ -185,7 +201,7 @@ func (dec *Decoder) decodeEndOfContent() (err error) {
 }
 
 func (dec *Decoder) decodePrimitive(v reflect.Value) (err error) {
-	b, err := dec.decodeLengthAndContent()
+	b, _, err := dec.decodeLengthAndContent()
 	if err != nil {
 		return
 	}
@@ -242,12 +258,13 @@ func (dec *Decoder) decodeType() (class, tag int, constructed bool, err error) {
 	return
 }
 
-func (dec *Decoder) decodeLengthAndContent() (b []byte, err error) {
+func (dec *Decoder) decodeLengthAndContent() (b []byte, indefinite bool, err error) {
 	length, indefinite, err := dec.decodeLength()
 	if err != nil {
 		return
 	}
-	return dec.decodeContent(length, indefinite)
+	b, err = dec.decodeContent(length, indefinite)
+	return
 }
 
 func (dec *Decoder) decodeContent(length int, indefinite bool) (b []byte, err error) {
@@ -297,13 +314,13 @@ func (dec *Decoder) decodeLength() (length int, isIndefinite bool, err error) {
 		err = SyntaxError("long-form length")
 		return
 	} else {
-		var width int
-		n := c & 0x7f
-		width, err = io.ReadFull(dec, dec.lenb[0:n])
+		width := c & 0x7f
+		dec.lenb = dec.lenb[:1+width]
+		_, err = io.ReadFull(dec, dec.lenb[1:1+width])
 		if err != nil {
 			return
 		}
-		for _, b := range dec.lenb[0:width] {
+		for _, b := range dec.lenb[1:1+width] {
 			length = length<<8 | int(b)
 		}
 	}

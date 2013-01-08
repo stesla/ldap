@@ -57,6 +57,7 @@ type RawValue struct {
 	Class, Tag  int
 	Constructed bool
 	Bytes       []byte
+	RawBytes       []byte
 }
 
 type OptionValue struct {

@@ -105,11 +105,13 @@ func TestDecodeLength(t *testing.T) {
 
 func TestDecodeRawValue(t *testing.T) {
 	tests := []decoderTest{
-		{[]byte{0x05, 0x00}, true, RawValue{0, 5, false, []byte{}}},
-		{[]byte{0x04, 0x03, 'f', 'o', 'o'}, true, RawValue{0, 4, false, []byte("foo")}},
-		{[]byte{0x04, 0x80, 0x00, 0x00}, true, RawValue{0, 4, false, []byte{}}},
+		{[]byte{0x05, 0x00}, true, RawValue{0, 5, false, []byte{}, []byte{0x05, 0x00}}},
+		{[]byte{0x04, 0x03, 'f', 'o', 'o'}, true, RawValue{0, 4, false, []byte("foo"), []byte{0x04, 0x03, 'f', 'o', 'o'}}},
+		{[]byte{0x04, 0x84, 0, 0, 0, 0x03, 'f', 'o', 'o'}, true,
+			RawValue{0, 4, false, []byte("foo"), []byte{0x04, 0x84, 0, 0, 0, 0x03, 'f', 'o', 'o'}}},
+		{[]byte{0x04, 0x80, 0x00, 0x00}, true, RawValue{0, 4, false, []byte{}, []byte{0x04, 0x80, 0x00, 0x00}}},
 		{[]byte{0x04, 0x80, 'b', 'a', 'r', 0x00, 0x00}, true,
-			RawValue{0, 4, false, []byte("bar")}},
+			RawValue{0, 4, false, []byte("bar"), []byte{0x04, 0x80, 'b', 'a', 'r', 0x00, 0x00}}},
 	}
 	var out RawValue
 	runDecoderTests(t, tests, withValue(&out))

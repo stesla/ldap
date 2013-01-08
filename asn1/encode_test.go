@@ -30,8 +30,8 @@ func runEncoderTests(t *testing.T, tests []encoderTest) {
 func TestEncodeRawValue(t *testing.T) {
 	tests := []encoderTest{
 		// Raw Values
-		{RawValue{0, 5, false, []byte{}}, true, []byte{0x05, 0x00}},
-		{RawValue{0, 4, false, []byte("foo")}, true, []byte{0x04, 0x03, 'f', 'o', 'o'}},
+		{RawValue{Class: 0, Tag: 5, Constructed: false, Bytes: []byte{}}, true, []byte{0x05, 0x00}},
+		{RawValue{Class: 0, Tag: 4, Constructed: false, Bytes: []byte("foo")}, true, []byte{0x04, 0x03, 'f', 'o', 'o'}},
 	}
 	runEncoderTests(t, tests)
 }
