@@ -2,6 +2,7 @@ package ldap
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"github.com/stesla/ldap/asn1"
 	"net"
@@ -13,15 +14,38 @@ type Conn interface {
 	Bind(user, password string) error
 	Unbind() error
 	Search(req SearchRequest) ([]SearchResult, error)
+	StartTLS(config *tls.Config) error
 }
 
-// TODO: Implement TLS
 func Dial(addr string) (Conn, error) {
 	tcp, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
 	return newConn(tcp), nil
+}
+
+func DialSSL(addr string, tlsConfig *tls.Config) (Conn, error) {
+	tcp, err := tls.Dial("tcp", addr, tlsConfig)
+	if err != nil {
+		return nil, err
+	}
+	return newConn(tcp), nil
+}
+
+func DialTLS(addr string, tlsConfig *tls.Config) (Conn, error) {
+	tcp, err := Dial(addr)
+	if err != nil {
+		return nil, err
+	}
+	conn := newConn(tcp)
+
+	err = conn.StartTLS(tlsConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 type conn struct {
@@ -234,4 +258,48 @@ loop:
 	}
 
 	return results, nil
+}
+
+type extendedRequest struct {
+	Name []byte `asn1:"tag:0"`
+	Value []byte `asn1:"tag:1,optional"`
+}
+
+type extendedResponse struct {
+	Result ldapResult `asn1:"components"`
+	Name []byte `asn1:"tag:10,optional"`
+	Value []byte `asn1:"tag:11,optional"`
+}
+
+func (l *conn) StartTLS(config *tls.Config) error {
+	msg := ldapMessage{
+		MessageId:  l.id.Next(),
+		ProtocolOp: asn1.OptionValue{
+			"application,tag:23",
+			extendedRequest{Name: []byte("1.3.6.1.4.1.1466.20037")},
+		},
+	}
+
+	enc := asn1.NewEncoder(l)
+	enc.Implicit = true
+	if err := enc.Encode(msg); err != nil {
+		return fmt.Errorf("Encode: %v", err)
+	}
+
+	var r extendedResponse
+	resp := ldapMessage{ProtocolOp: asn1.OptionValue{"application,tag:24", &r}}
+
+	dec := asn1.NewDecoder(l)
+	dec.Implicit = true
+
+	if err := dec.Decode(&resp); err != nil {
+		return fmt.Errorf("Decode: %v", err)
+	}
+
+	if r.Result.ResultCode != Success {
+		return fmt.Errorf("ResultCode = %d", r.Result.ResultCode)
+	}
+
+	l.Conn = tls.Client(l.Conn, config)
+	return nil
 }
