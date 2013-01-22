@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/stesla/ldap/asn1"
 	"net"
+	"strings"
 	"sync"
 )
 
@@ -15,6 +16,21 @@ type Conn interface {
 	Unbind() error
 	Search(req SearchRequest) ([]SearchResult, error)
 	StartTLS(config *tls.Config) error
+}
+
+func RoundRobin(addr string, dialer func(string) (Conn, error)) (Conn, error) {
+	parts := strings.Split(addr, ":")
+	hosts, err := net.LookupHost(parts[0])
+	if err != nil {
+		return nil, fmt.Errorf("LookupHost: %v", err)
+	}
+	for _, host := range hosts {
+		conn, err := dialer(fmt.Sprintf("%s:%s", host, parts[1]))
+		if err == nil {
+			return conn, nil
+		}
+	}
+	return nil, fmt.Errorf("could not connect to an ldap server")
 }
 
 func Dial(addr string) (Conn, error) {
