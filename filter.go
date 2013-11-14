@@ -27,6 +27,10 @@ func Equals(attribute, value string) Filter {
 	return asn1.OptionValue{"tag:3", val}
 }
 
+func Present(attribute string) Filter {
+	return asn1.OptionValue{"tag:7", []byte(attribute)}
+}
+
 type matchingRuleAssertion struct {
 	MatchingRule []byte `asn1:"tag:1,optional"`
 	Type         []byte `asn1:"tag:2,optional"`
