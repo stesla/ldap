@@ -7,15 +7,15 @@ import (
 type Filter interface{}
 
 func And(filters ...Filter) Filter {
-	return asn1.OptionValue{"tag:0,set", filters}
+	return asn1.OptionValue{Opts: "tag:0,set", Value: filters}
 }
 
 func Or(filters ...Filter) Filter {
-	return asn1.OptionValue{"tag:1,set", filters}
+	return asn1.OptionValue{Opts: "tag:1,set", Value: filters}
 }
 
 func Not(filter Filter) Filter {
-	return asn1.OptionValue{"tag:2", filter}
+	return asn1.OptionValue{Opts: "tag:2", Value: filter}
 }
 
 type attributeValueAssertion struct {
@@ -24,11 +24,11 @@ type attributeValueAssertion struct {
 
 func Equals(attribute, value string) Filter {
 	val := attributeValueAssertion{[]byte(attribute), []byte(value)}
-	return asn1.OptionValue{"tag:3", val}
+	return asn1.OptionValue{Opts: "tag:3", Value: val}
 }
 
 func Present(attribute string) Filter {
-	return asn1.OptionValue{"tag:7", []byte(attribute)}
+	return asn1.OptionValue{Opts: "tag:7", Value: []byte(attribute)}
 }
 
 type matchingRuleAssertion struct {
@@ -41,5 +41,5 @@ type matchingRuleAssertion struct {
 func Matches(rule, attribute, value string) Filter {
 	val := matchingRuleAssertion{
 		[]byte(rule), []byte(attribute), []byte(value), false}
-	return asn1.OptionValue{"tag:9", val}
+	return asn1.OptionValue{Opts: "tag:9", Value: val}
 }

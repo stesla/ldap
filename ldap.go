@@ -107,8 +107,7 @@ func (l *conn) Bind(user, password string) (err error) {
 	msg := ldapMessage{
 		MessageId: l.id.Next(),
 		ProtocolOp: asn1.OptionValue{
-			"application,tag:0",
-			bindRequest{
+			Opts: "application,tag:0", Value: bindRequest{
 				Version: 3,
 				Name:    []byte(user),
 				// TODO: Support SASL
@@ -125,7 +124,7 @@ func (l *conn) Bind(user, password string) (err error) {
 
 	var result ldapResult
 	msg = ldapMessage{
-		ProtocolOp: asn1.OptionValue{"application,tag:1", &result},
+		ProtocolOp: asn1.OptionValue{Opts: "application,tag:1", Value: &result},
 	}
 	dec := asn1.NewDecoder(l)
 	dec.Implicit = true
@@ -140,7 +139,7 @@ func (l *conn) Bind(user, password string) (err error) {
 }
 
 func simpleAuth(password string) interface{} {
-	return asn1.OptionValue{"tag:0", []byte(password)}
+	return asn1.OptionValue{Opts: "tag:0", Value: []byte(password)}
 }
 
 func (l *conn) Unbind() error {
@@ -148,12 +147,10 @@ func (l *conn) Unbind() error {
 
 	msg := ldapMessage{
 		MessageId: l.id.Next(),
-		ProtocolOp: asn1.OptionValue{
-			"application,tag:2",
-			asn1.RawValue{
-				Class: asn1.ClassUniversal,
-				Tag:   asn1.TagNull,
-			},
+		ProtocolOp: asn1.OptionValue{Opts: "application,tag:2", Value: asn1.RawValue{
+			Class: asn1.ClassUniversal,
+			Tag:   asn1.TagNull,
+		},
 		},
 	}
 
@@ -215,7 +212,7 @@ type SearchResult struct {
 func (l *conn) Search(req SearchRequest) ([]SearchResult, error) {
 	msg := ldapMessage{
 		MessageId:  l.id.Next(),
-		ProtocolOp: asn1.OptionValue{"application,tag:3", req},
+		ProtocolOp: asn1.OptionValue{Opts: "application,tag:3", Value: req},
 	}
 
 	enc := asn1.NewEncoder(l)
@@ -247,7 +244,7 @@ loop:
 					Values [][]byte `asn1:"set"`
 				}
 			}
-			if err := rdec.Decode(asn1.OptionValue{"application,tag:4", &r}); err != nil {
+			if err := rdec.Decode(asn1.OptionValue{Opts: "application,tag:4", Value: &r}); err != nil {
 				return nil, fmt.Errorf("Decode SearchResult: %v", err)
 			}
 			result := SearchResult{string(r.Name), make(map[string][]string)}
@@ -261,7 +258,7 @@ loop:
 			results = append(results, result)
 		case 5: // SearchResultDone
 			var r ldapResult
-			if err := rdec.Decode(asn1.OptionValue{"application,tag:5", &r}); err != nil {
+			if err := rdec.Decode(asn1.OptionValue{Opts: "application,tag:5", Value: &r}); err != nil {
 				return nil, fmt.Errorf("Decode SearchResultDone: %v", err)
 			}
 			if r.ResultCode != Success {
@@ -277,22 +274,20 @@ loop:
 }
 
 type extendedRequest struct {
-	Name []byte `asn1:"tag:0"`
+	Name  []byte `asn1:"tag:0"`
 	Value []byte `asn1:"tag:1,optional"`
 }
 
 type extendedResponse struct {
 	Result ldapResult `asn1:"components"`
-	Name []byte `asn1:"tag:10,optional"`
-	Value []byte `asn1:"tag:11,optional"`
+	Name   []byte     `asn1:"tag:10,optional"`
+	Value  []byte     `asn1:"tag:11,optional"`
 }
 
 func (l *conn) StartTLS(config *tls.Config) error {
 	msg := ldapMessage{
-		MessageId:  l.id.Next(),
-		ProtocolOp: asn1.OptionValue{
-			"application,tag:23",
-			extendedRequest{Name: []byte("1.3.6.1.4.1.1466.20037")},
+		MessageId: l.id.Next(),
+		ProtocolOp: asn1.OptionValue{Opts: "application,tag:23", Value: extendedRequest{Name: []byte("1.3.6.1.4.1.1466.20037")},
 		},
 	}
 
@@ -303,7 +298,7 @@ func (l *conn) StartTLS(config *tls.Config) error {
 	}
 
 	var r extendedResponse
-	resp := ldapMessage{ProtocolOp: asn1.OptionValue{"application,tag:24", &r}}
+	resp := ldapMessage{ProtocolOp: asn1.OptionValue{Opts: "application,tag:24", Value: &r}}
 
 	dec := asn1.NewDecoder(l)
 	dec.Implicit = true
