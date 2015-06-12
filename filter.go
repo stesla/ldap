@@ -27,6 +27,38 @@ func Equals(attribute, value string) Filter {
 	return asn1.OptionValue{Opts: "tag:3", Value: val}
 }
 
+type substring asn1.OptionValue
+
+type substringFilter struct {
+	Attribute  []byte
+	Substrings []asn1.OptionValue
+}
+
+func makeSubstring(tag, val string) substring {
+	return substring(asn1.OptionValue{Opts: "tag:"+tag, Value: []byte(val)})
+}
+
+func InitialSubstring(val string) substring {
+	return makeSubstring("0", val)
+}
+
+func AnySubstring(val string) substring {
+	return makeSubstring("1", val)
+}
+
+func FinalSubstring(val string) substring {
+	return makeSubstring("2", val)
+}
+
+func Substring(attribute string, substrings ...substring) Filter {
+	optionValues := make([]asn1.OptionValue, len(substrings))
+	for i, s := range substrings {
+		optionValues[i] = asn1.OptionValue(s)
+	}
+	val := substringFilter{[]byte(attribute), optionValues}
+	return asn1.OptionValue{Opts: "tag:4", Value: val}
+}
+
 func Present(attribute string) Filter {
 	return asn1.OptionValue{Opts: "tag:7", Value: []byte(attribute)}
 }
