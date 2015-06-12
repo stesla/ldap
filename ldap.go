@@ -286,9 +286,8 @@ type extendedResponse struct {
 
 func (l *conn) StartTLS(config *tls.Config) error {
 	msg := ldapMessage{
-		MessageId: l.id.Next(),
-		ProtocolOp: asn1.OptionValue{Opts: "application,tag:23", Value: extendedRequest{Name: []byte("1.3.6.1.4.1.1466.20037")},
-		},
+		MessageId:  l.id.Next(),
+		ProtocolOp: asn1.OptionValue{Opts: "application,tag:23", Value: extendedRequest{Name: []byte("1.3.6.1.4.1.1466.20037")}},
 	}
 
 	enc := asn1.NewEncoder(l)

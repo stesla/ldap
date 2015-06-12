@@ -35,7 +35,7 @@ type substringFilter struct {
 }
 
 func makeSubstring(tag, val string) substring {
-	return substring(asn1.OptionValue{Opts: "tag:"+tag, Value: []byte(val)})
+	return substring(asn1.OptionValue{Opts: "tag:" + tag, Value: []byte(val)})
 }
 
 func InitialSubstring(val string) substring {
