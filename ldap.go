@@ -301,7 +301,6 @@ func (l *conn) StartTLS(config *tls.Config) error {
 
 	dec := asn1.NewDecoder(l)
 	dec.Implicit = true
-
 	if err := dec.Decode(&resp); err != nil {
 		return fmt.Errorf("Decode: %v", err)
 	}
